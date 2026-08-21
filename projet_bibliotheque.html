@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Apprentissage SQL & PostgreSQL - Projet Bibliothèque</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #262637;
+    --text: #d4d4e0;
+    --kw: #7dafff;
+    --str: #ce9178;
+    --cmt: #6a9955;
+    --border: #3a3a4d;
+    --accent: #f1c40f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: linear-gradient(180deg, #14141f, #1e1e2e);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+  }
+  .wrapper {
+    max-width: 980px;
+    width: 100%;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: #fff;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.3px;
+  }
+  .subtitle {
+    color: #9494ac;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 20px;
+    font-size: 0.82rem;
+    color: #9494ac;
+    flex-wrap: wrap;
+  }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.kw { background: var(--kw); }
+  .dot.str { background: var(--str); }
+  .dot.cmt { background: var(--cmt); }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .kw { color: var(--kw); font-weight: 600; }
+  .str { color: var(--str); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  footer {
+    text-align: center;
+    color: #6a6a80;
+    font-size: 0.78rem;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>📘 Apprentissage SQL & PostgreSQL - Projet Bibliothèque</h1>
+  <div class="subtitle">Mini-projet bibliothèque — script complet commenté (exercices 1 à 11)</div>
+  <div class="legend">
+    <span><i class="dot kw"></i> Mots-clés SQL</span>
+    <span><i class="dot str"></i> Chaînes de texte</span>
+    <span><i class="dot cmt"></i> Commentaires / explications</span>
+  </div>
+  <pre><span class="cmt">-- ============================================================</span>
+<span class="cmt">-- PROJET BIBLIOTHÈQUE - RÉCAPITULATIF COMPLET</span>
+<span class="cmt">-- Exercices d&#x27;application : CTE, jointures, agrégation, UPDATE, ALTER TABLE</span>
+<span class="cmt">-- ============================================================</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 1. CRÉATION DES TABLES</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Ordre de création important : les tables &quot;autonomes&quot; d&#x27;abord</span>
+<span class="cmt">-- (auteurs, membres), puis &quot;livres&quot; qui dépend d&#x27;auteurs,</span>
+<span class="cmt">-- puis &quot;emprunts&quot; qui dépend de membres ET de livres.</span>
+
+<span class="cmt">-- Table AUTEURS</span>
+<span class="kw">CREATE TABLE</span> auteurs (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,            <span class="cmt">-- identifiant unique auto-incrémenté</span>
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,        <span class="cmt">-- nom de l&#x27;auteur, obligatoire</span>
+    pays <span class="kw">VARCHAR</span>(50)                  <span class="cmt">-- pays d&#x27;origine, optionnel</span>
+);
+
+<span class="cmt">-- Table LIVRES (dépend de auteurs)</span>
+<span class="kw">CREATE TABLE</span> livres (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    titre <span class="kw">VARCHAR</span>(200) <span class="kw">NOT NULL</span>,      <span class="cmt">-- titre du livre, obligatoire</span>
+    auteur_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> auteurs(id),
+                                       <span class="cmt">-- clé étrangère : doit correspondre à un id existant dans &quot;auteurs&quot;</span>
+    annee_publication <span class="kw">INT</span>,            <span class="cmt">-- année de publication (nombre entier)</span>
+    prix <span class="kw">NUMERIC</span>(10,2) <span class="kw">CHECK</span> (prix &gt; 0),
+                                       <span class="cmt">-- prix décimal précis, doit être strictement positif</span>
+    exemplaires_dispo <span class="kw">INT</span> <span class="kw">DEFAULT</span> 0 <span class="kw">CHECK</span> (exemplaires_dispo &gt;= 0)
+                                       <span class="cmt">-- nombre d&#x27;exemplaires disponibles, 0 par défaut, jamais négatif</span>
+);
+
+<span class="cmt">-- Table MEMBRES</span>
+<span class="kw">CREATE TABLE</span> membres (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,
+    email <span class="kw">VARCHAR</span>(100) <span class="kw">UNIQUE</span>,        <span class="cmt">-- email unique, pas de doublon possible</span>
+    ville <span class="kw">VARCHAR</span>(50)
+);
+
+<span class="cmt">-- Table EMPRUNTS (table de liaison, dépend de membres ET de livres)</span>
+<span class="kw">CREATE TABLE</span> emprunts (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    membre_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> membres(id),
+                                       <span class="cmt">-- clé étrangère vers membres</span>
+    livre_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> livres(id),
+                                       <span class="cmt">-- clé étrangère vers livres</span>
+    date_emprunt <span class="kw">DATE</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_DATE</span>,
+                                       <span class="cmt">-- date du jour par défaut si non précisée</span>
+    date_retour <span class="kw">DATE</span>                  <span class="cmt">-- NULL tant que le livre n&#x27;est pas rendu</span>
+);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 2. INSERTION DES DONNÉES DE TEST</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="kw">INSERT INTO</span> auteurs (nom, pays) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Victor Hugo&#x27;</span>, <span class="str">&#x27;France&#x27;</span>),
+(<span class="str">&#x27;Jane Austen&#x27;</span>, <span class="str">&#x27;Royaume-Uni&#x27;</span>),
+(<span class="str">&#x27;Haruki Murakami&#x27;</span>, <span class="str">&#x27;Japon&#x27;</span>),
+(<span class="str">&#x27;Gabriel García Márquez&#x27;</span>, <span class="str">&#x27;Colombie&#x27;</span>);
+
+<span class="kw">INSERT INTO</span> livres (titre, auteur_id, annee_publication, prix, exemplaires_dispo) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Les Misérables&#x27;</span>, 1, 1862, 15.90, 3),
+(<span class="str">&#x27;Notre-Dame de Paris&#x27;</span>, 1, 1831, 12.50, 0),        <span class="cmt">-- rupture volontaire pour les tests</span>
+(<span class="str">&#x27;Pride and Prejudice&#x27;</span>, 2, 1813, 9.99, 5),
+(<span class="str">&#x27;Kafka sur le rivage&#x27;</span>, 3, 2002, 18.00, 2),
+(<span class="str">&#x27;1Q84&#x27;</span>, 3, 2009, 22.50, 0),                        <span class="cmt">-- rupture volontaire pour les tests</span>
+(<span class="str">&#x27;Cent ans de solitude&#x27;</span>, 4, 1967, 14.00, 4);
+
+<span class="kw">INSERT INTO</span> membres (nom, email, ville) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Emma Petit&#x27;</span>, <span class="str">&#x27;emma@mail.com&#x27;</span>, <span class="str">&#x27;Rennes&#x27;</span>),
+(<span class="str">&#x27;Lucas Moreau&#x27;</span>, <span class="str">&#x27;lucas@mail.com&#x27;</span>, <span class="str">&#x27;Nantes&#x27;</span>),
+(<span class="str">&#x27;Sarah Blanc&#x27;</span>, <span class="str">&#x27;sarah@mail.com&#x27;</span>, <span class="str">&#x27;Rennes&#x27;</span>),
+(<span class="str">&#x27;Tom Girard&#x27;</span>, <span class="str">&#x27;tom@mail.com&#x27;</span>, <span class="str">&#x27;Paris&#x27;</span>);
+
+<span class="kw">INSERT INTO</span> emprunts (membre_id, livre_id, date_emprunt, date_retour) <span class="kw">VALUES</span>
+(1, 1, <span class="str">&#x27;2026-07-01&#x27;</span>, <span class="str">&#x27;2026-07-15&#x27;</span>),   <span class="cmt">-- Emma a emprunté et rendu &quot;Les Misérables&quot;</span>
+(1, 4, <span class="str">&#x27;2026-07-20&#x27;</span>, NULL),           <span class="cmt">-- Emma a emprunté &quot;Kafka sur le rivage&quot;, pas encore rendu</span>
+(2, 3, <span class="str">&#x27;2026-07-05&#x27;</span>, <span class="str">&#x27;2026-07-19&#x27;</span>),   <span class="cmt">-- Lucas a emprunté et rendu &quot;Pride and Prejudice&quot;</span>
+(3, 5, <span class="str">&#x27;2026-07-10&#x27;</span>, NULL),           <span class="cmt">-- Sarah a emprunté &quot;1Q84&quot;, pas encore rendu</span>
+(3, 1, <span class="str">&#x27;2026-08-01&#x27;</span>, NULL),           <span class="cmt">-- Sarah a emprunté &quot;Les Misérables&quot;, pas encore rendu</span>
+(4, 6, <span class="str">&#x27;2026-07-25&#x27;</span>, <span class="str">&#x27;2026-08-05&#x27;</span>);   <span class="cmt">-- Tom a emprunté et rendu &quot;Cent ans de solitude&quot;</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 3. EXERCICE 1 - Filtrer une table (WHERE simple)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : retrouver rapidement un sous-ensemble de lignes</span>
+<span class="cmt">-- Liste tous les membres qui habitent à Rennes</span>
+
+<span class="kw">SELECT</span> *                        <span class="cmt">-- toutes les colonnes (id, nom, email, ville)</span>
+<span class="kw">FROM</span> membres                    <span class="cmt">-- source : la table &quot;membres&quot;</span>
+<span class="kw">WHERE</span> ville = <span class="str">&#x27;Rennes&#x27;</span>;         <span class="cmt">-- condition : ne garder que les lignes où ville = &#x27;Rennes&#x27;</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 4. EXERCICE 2 - Filtrer avec une condition numérique</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Liste les livres publiés avant 1900</span>
+
+<span class="kw">SELECT</span> *                                    <span class="cmt">-- toutes les colonnes</span>
+<span class="kw">FROM</span> livres                                 <span class="cmt">-- source : la table &quot;livres&quot;</span>
+<span class="kw">WHERE</span> annee_publication &lt; 1900;             <span class="cmt">-- condition : année strictement inférieure à 1900</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 5. EXERCICE 3 - Identifier les ruptures de stock</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Liste les livres actuellement en rupture</span>
+
+<span class="kw">SELECT</span> titre                                <span class="cmt">-- on affiche seulement le titre</span>
+<span class="kw">FROM</span> livres                                 <span class="cmt">-- source : la table &quot;livres&quot;</span>
+<span class="kw">WHERE</span> exemplaires_dispo = 0;                <span class="cmt">-- condition : aucun exemplaire disponible</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 6. EXERCICE 4 - Jointure à 3 tables (JOIN)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : &quot;emprunts&quot; ne stocke que des ID. Le JOIN permet de</span>
+<span class="cmt">-- traduire ces ID en informations lisibles (nom du membre, titre du livre)</span>
+<span class="cmt">-- Affiche chaque emprunt avec le nom du membre et le titre du livre</span>
+
+<span class="kw">SELECT</span> m.nom <span class="kw">AS</span> membre,                     <span class="cmt">-- nom du membre (table membres, alias m)</span>
+       l.titre <span class="kw">AS</span> livre,                    <span class="cmt">-- titre du livre (table livres, alias l)</span>
+       e.date_emprunt,                      <span class="cmt">-- date de l&#x27;emprunt</span>
+       e.date_retour                        <span class="cmt">-- date de retour (NULL si pas encore rendu)</span>
+<span class="kw">FROM</span> emprunts e                             <span class="cmt">-- table de départ : &quot;emprunts&quot;, alias &quot;e&quot;</span>
+<span class="kw">JOIN</span> membres m <span class="kw">ON</span> e.membre_id = m.id        <span class="cmt">-- relie chaque emprunt à son membre via l&#x27;id</span>
+<span class="kw">JOIN</span> livres l <span class="kw">ON</span> e.livre_id = l.id;         <span class="cmt">-- relie chaque emprunt à son livre via l&#x27;id</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 7. EXERCICE 5 - Recherche texte insensible à la casse (ILIKE)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Trouve tous les auteurs dont le nom contient un &quot;a&quot;</span>
+
+<span class="kw">SELECT</span> *                                    <span class="cmt">-- toutes les colonnes</span>
+<span class="kw">FROM</span> auteurs                                <span class="cmt">-- source : la table &quot;auteurs&quot;</span>
+<span class="kw">WHERE</span> nom <span class="kw">ILIKE</span> <span class="str">&#x27;%a%&#x27;</span>;                      <span class="cmt">-- &quot;a&quot; n&#x27;importe où dans le nom, insensible à la casse</span>
+                                             <span class="cmt">-- % = n&#x27;importe quelle suite de caractères avant/après</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 8. EXERCICE 6 - Intervalle de valeurs (BETWEEN)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Liste les livres dont le prix est entre 10€ et 20€</span>
+
+<span class="kw">SELECT</span> titre, prix                          <span class="cmt">-- titre et prix uniquement</span>
+<span class="kw">FROM</span> livres                                 <span class="cmt">-- source : la table &quot;livres&quot;</span>
+<span class="kw">WHERE</span> prix <span class="kw">BETWEEN</span> 10 <span class="kw">AND</span> 20;               <span class="cmt">-- équivalent à prix &gt;= 10 AND prix &lt;= 20</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 9. EXERCICE 7 - Agrégation avec COUNT et GROUP BY</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : compter le nombre de lignes liées à chaque groupe</span>
+<span class="cmt">-- Combien de livres a écrit chaque auteur ? (triés du plus prolifique au moins)</span>
+
+<span class="kw">SELECT</span> a.nom,                               <span class="cmt">-- nom de l&#x27;auteur</span>
+       <span class="kw">COUNT</span>(l.id) <span class="kw">AS</span> nombre_livres         <span class="cmt">-- nombre de livres liés à cet auteur</span>
+<span class="kw">FROM</span> auteurs a                              <span class="cmt">-- table de départ : &quot;auteurs&quot;, alias &quot;a&quot;</span>
+<span class="kw">JOIN</span> livres l <span class="kw">ON</span> l.auteur_id = a.id         <span class="cmt">-- relie chaque livre à son auteur</span>
+<span class="kw">GROUP BY</span> a.nom                              <span class="cmt">-- regroupement obligatoire car on utilise COUNT()</span>
+<span class="kw">ORDER BY</span> nombre_livres <span class="kw">DESC</span>;                <span class="cmt">-- tri décroissant : le plus prolifique en premier</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 10. EXERCICE 8 - CTE (WITH ... AS) + filtre sur agrégat</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : isoler le calcul (nombre d&#x27;emprunts par membre) dans</span>
+<span class="cmt">-- une table temporaire nommée, puis filtrer dessus normalement,</span>
+<span class="cmt">-- sans avoir à répéter COUNT(...) dans un HAVING</span>
+<span class="cmt">-- Trouve les membres ayant emprunté plus de 1 livre</span>
+
+<span class="kw">WITH</span> emprunts_par_membre <span class="kw">AS</span> (
+    <span class="cmt">-- ÉTAPE 1 : on calcule le nombre d&#x27;emprunts par membre, une seule fois</span>
+    <span class="kw">SELECT</span> m.nom,                           <span class="cmt">-- nom du membre</span>
+           <span class="kw">COUNT</span>(e.id) <span class="kw">AS</span> nombre_emprunts   <span class="cmt">-- nombre d&#x27;emprunts associés</span>
+    <span class="kw">FROM</span> emprunts e                         <span class="cmt">-- table de départ : &quot;emprunts&quot;, alias &quot;e&quot;</span>
+    <span class="kw">JOIN</span> membres m <span class="kw">ON</span> e.membre_id = m.id    <span class="cmt">-- relie chaque emprunt à son membre</span>
+    <span class="kw">GROUP BY</span> m.nom                          <span class="cmt">-- regroupement obligatoire car on utilise COUNT()</span>
+)
+<span class="cmt">-- ÉTAPE 2 : on réutilise le résultat de la CTE comme une table normale</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> emprunts_par_membre
+<span class="kw">WHERE</span> nombre_emprunts &gt; 1                   <span class="cmt">-- filtre : garder seulement plus d&#x27;1 emprunt</span>
+<span class="kw">ORDER BY</span> nombre_emprunts <span class="kw">DESC</span>;              <span class="cmt">-- tri décroissant</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 11. EXERCICE 9 - Rechercher les valeurs vides (IS NULL)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- ⚠️ NULL ne se compare jamais avec &quot;=&quot;, toujours avec IS NULL / IS NOT NULL</span>
+<span class="cmt">-- Livres actuellement empruntés et non rendus</span>
+
+<span class="kw">SELECT</span> m.nom <span class="kw">AS</span> membre,                     <span class="cmt">-- nom du membre qui a emprunté</span>
+       l.titre <span class="kw">AS</span> livre,                    <span class="cmt">-- titre du livre concerné</span>
+       e.date_emprunt                       <span class="cmt">-- date de l&#x27;emprunt</span>
+<span class="kw">FROM</span> emprunts e
+<span class="kw">JOIN</span> membres m <span class="kw">ON</span> e.membre_id = m.id
+<span class="kw">JOIN</span> livres l <span class="kw">ON</span> e.livre_id = l.id
+<span class="kw">WHERE</span> e.date_retour <span class="kw">IS NULL</span>;                <span class="cmt">-- condition : aucune date de retour renseignée</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 12. EXERCICE 10 - UPDATE avec sous-requêtes</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : modifier une ligne précise en la ciblant par son nom/titre</span>
+<span class="cmt">-- plutôt que par un id qu&#x27;on ne connaît pas forcément par cœur</span>
+<span class="cmt">-- Marquer &quot;Les Misérables&quot; comme rendu pour Sarah Blanc</span>
+
+<span class="kw">UPDATE</span> emprunts                             <span class="cmt">-- on modifie la table &quot;emprunts&quot;</span>
+<span class="kw">SET</span> date_retour = <span class="str">&#x27;2026-08-10&#x27;</span>              <span class="cmt">-- on renseigne la date de retour</span>
+<span class="kw">WHERE</span> membre_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> membres <span class="kw">WHERE</span> nom = <span class="str">&#x27;Sarah Blanc&#x27;</span>)
+                                             <span class="cmt">-- sous-requête : récupère l&#x27;id de Sarah Blanc</span>
+  <span class="kw">AND</span> livre_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> livres <span class="kw">WHERE</span> titre = <span class="str">&#x27;Les Misérables&#x27;</span>)
+                                             <span class="cmt">-- sous-requête : récupère l&#x27;id du livre ciblé</span>
+  <span class="kw">AND</span> date_retour <span class="kw">IS NULL</span>;                  <span class="cmt">-- sécurité : ne modifier que l&#x27;emprunt pas encore rendu</span>
+
+<span class="cmt">-- Vérification du résultat</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> emprunts
+<span class="kw">WHERE</span> membre_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> membres <span class="kw">WHERE</span> nom = <span class="str">&#x27;Sarah Blanc&#x27;</span>);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 13. EXERCICE 11 - ALTER TABLE (ajouter une colonne)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- UTILITÉ : faire évoluer la structure d&#x27;une table existante</span>
+<span class="cmt">-- sans perdre les données déjà présentes</span>
+<span class="cmt">-- Ajouter une colonne &quot;genre&quot; à la table livres</span>
+
+<span class="kw">ALTER TABLE</span> livres
+<span class="kw">ADD COLUMN</span> genre <span class="kw">VARCHAR</span>(50);               <span class="cmt">-- nouvelle colonne texte, vide (NULL) par défaut</span>
+
+<span class="cmt">-- Vérification : la colonne &quot;genre&quot; doit apparaître, vide pour toutes les lignes</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> livres;
+
+<span class="cmt">-- Bonus : remplir quelques valeurs de test</span>
+<span class="kw">UPDATE</span> livres <span class="kw">SET</span> genre = <span class="str">&#x27;Roman&#x27;</span> <span class="kw">WHERE</span> titre = <span class="str">&#x27;Les Misérables&#x27;</span>;
+<span class="kw">UPDATE</span> livres <span class="kw">SET</span> genre = <span class="str">&#x27;Réalisme magique&#x27;</span> <span class="kw">WHERE</span> titre = <span class="str">&#x27;Cent ans de solitude&#x27;</span>;
+
+<span class="kw">SELECT</span> titre, genre <span class="kw">FROM</span> livres;
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- LIEN POUR REPRENDRE LA SÉANCE (DB Fiddle)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- ⚠️ Lien à mettre à jour avec le vrai lien /f/... généré via</span>
+<span class="cmt">-- le bouton &quot;Save&quot; de DB Fiddle sur ce projet Bibliothèque</span>
+</pre>
+  <footer>
+    Généré à partir de la session d'apprentissage SQL / PostgreSQL<br>⚠️ Lien DB Fiddle à ajouter (bouton "Save" sur le fiddle du projet)
+  </footer>
+</div>
+</body>
+</html>
