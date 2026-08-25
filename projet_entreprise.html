@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Apprentissage SQL & PostgreSQL - Projet Gestion d'Entreprise</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #262637;
+    --text: #d4d4e0;
+    --kw: #7dafff;
+    --str: #ce9178;
+    --cmt: #6a9955;
+    --border: #3a3a4d;
+    --accent: #f1c40f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: linear-gradient(180deg, #14141f, #1e1e2e);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+  }
+  .wrapper {
+    max-width: 980px;
+    width: 100%;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: #fff;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.3px;
+  }
+  .subtitle {
+    color: #9494ac;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 20px;
+    font-size: 0.82rem;
+    color: #9494ac;
+    flex-wrap: wrap;
+  }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.kw { background: var(--kw); }
+  .dot.str { background: var(--str); }
+  .dot.cmt { background: var(--cmt); }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .kw { color: var(--kw); font-weight: 600; }
+  .str { color: var(--str); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .note {
+    background: #2a1418;
+    border-left: 4px solid #e74c3c;
+    color: #ff8080;
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin-top: 24px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+  .note strong { color: #ff5c5c; }
+  .note code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #ffb3b3;
+    font-family: 'Fira Code', 'Consolas', monospace;
+  }
+  footer {
+    text-align: center;
+    color: #6a6a80;
+    font-size: 0.78rem;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>📘 Apprentissage SQL & PostgreSQL - Projet Gestion d'Entreprise</h1>
+  <div class="subtitle">Projet de synthèse complet — 8 exercices, commandes ET résultats attendus détaillés pour chaque requête</div>
+  <div class="legend">
+    <span><i class="dot kw"></i> Mots-clés SQL</span>
+    <span><i class="dot str"></i> Chaînes de texte</span>
+    <span><i class="dot cmt"></i> Commentaires / explications</span>
+  </div>
+  <pre><span class="cmt">-- ============================================================</span>
+<span class="cmt">-- PROJET GESTION D&#x27;ENTREPRISE - RÉCAPITULATIF COMPLET</span>
+<span class="cmt">-- Synthèse de toutes les notions vues : bases, contraintes, CTE,</span>
+<span class="cmt">-- fonctions de fenêtrage, sous-requêtes, index, transactions,</span>
+<span class="cmt">-- types avancés (JSONB/ARRAY), vues, CASE WHEN, dates, CTE récursive</span>
+<span class="cmt">-- ============================================================</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 1. CRÉATION DES TABLES</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Choix du domaine &quot;entreprise&quot; pour illustrer une VRAIE hiérarchie</span>
+<span class="cmt">-- à deux niveaux : départements imbriqués ET employés avec managers.</span>
+<span class="cmt">-- Ordre de création : départements et employés d&#x27;abord (avec leur</span>
+<span class="cmt">-- propre auto-référence), puis projets, puis tâches qui dépendent</span>
+<span class="cmt">-- des deux précédents.</span>
+
+<span class="cmt">-- Table DÉPARTEMENTS (auto-référencée : un département peut avoir un parent)</span>
+<span class="kw">CREATE TABLE</span> departements (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,
+    departement_parent_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> departements(id)
+                                       <span class="cmt">-- pointe vers un AUTRE id de la MÊME table</span>
+                                       <span class="cmt">-- NULL = département racine (pas de parent)</span>
+);
+
+<span class="cmt">-- Table EMPLOYÉS (auto-référencée : un employé a un manager, lui-même employé)</span>
+<span class="kw">CREATE TABLE</span> employes (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,
+    email <span class="kw">VARCHAR</span>(100) <span class="kw">UNIQUE</span> <span class="kw">NOT NULL</span>,
+    departement_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> departements(id),
+    manager_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> employes(id),
+                                       <span class="cmt">-- pointe vers un AUTRE id de la MÊME table</span>
+                                       <span class="cmt">-- NULL = pas de manager (le plus haut niveau)</span>
+    salaire <span class="kw">NUMERIC</span>(10,2) <span class="kw">CHECK</span> (salaire &gt; 0),
+    date_embauche <span class="kw">DATE</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_DATE</span>,
+    competences <span class="kw">JSONB</span>,                <span class="cmt">-- type avancé : structure variable selon l&#x27;employé</span>
+    tags TEXT[]                       <span class="cmt">-- type avancé : liste simple de mots-clés</span>
+);
+
+<span class="cmt">-- Table PROJETS</span>
+<span class="kw">CREATE TABLE</span> projets (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(150) <span class="kw">NOT NULL</span>,
+    date_debut <span class="kw">DATE</span> <span class="kw">NOT NULL</span>,
+    date_fin <span class="kw">DATE</span>,                    <span class="cmt">-- NULL si le projet est encore en cours</span>
+    budget <span class="kw">NUMERIC</span>(12,2) <span class="kw">CHECK</span> (budget &gt; 0)
+);
+
+<span class="cmt">-- Table TÂCHES (table de liaison, dépend de projets ET d&#x27;employés)</span>
+<span class="kw">CREATE TABLE</span> taches (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    projet_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> projets(id),
+    employe_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> employes(id),
+    titre <span class="kw">VARCHAR</span>(200) <span class="kw">NOT NULL</span>,
+    statut <span class="kw">VARCHAR</span>(20) <span class="kw">DEFAULT</span> <span class="str">&#x27;à faire&#x27;</span> <span class="kw">CHECK</span> (statut <span class="kw">IN</span> (<span class="str">&#x27;à faire&#x27;</span>, <span class="str">&#x27;en cours&#x27;</span>, <span class="str">&#x27;terminée&#x27;</span>)),
+                                       <span class="cmt">-- CHECK avec IN : limite les valeurs possibles</span>
+    date_creation <span class="kw">DATE</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_DATE</span>,
+    date_echeance <span class="kw">DATE</span>
+);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 2. INSERTION DES DONNÉES DE TEST</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- Départements : Direction &gt; Tech &gt; (Développement, Data)</span>
+<span class="kw">INSERT INTO</span> departements (nom, departement_parent_id) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Direction&#x27;</span>, NULL),               <span class="cmt">-- id=1, racine</span>
+(<span class="str">&#x27;Tech&#x27;</span>, 1),                       <span class="cmt">-- id=2, sous-département de Direction</span>
+(<span class="str">&#x27;Développement&#x27;</span>, 2),              <span class="cmt">-- id=3, sous-département de Tech</span>
+(<span class="str">&#x27;Data&#x27;</span>, 2),                       <span class="cmt">-- id=4, sous-département de Tech</span>
+(<span class="str">&#x27;Commercial&#x27;</span>, 1);                 <span class="cmt">-- id=5, sous-département de Direction</span>
+
+<span class="cmt">-- Employés avec hiérarchie de management + JSONB + ARRAY</span>
+<span class="kw">INSERT INTO</span> employes (nom, email, departement_id, manager_id, salaire, date_embauche, competences, tags) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Claire Dubois&#x27;</span>, <span class="str">&#x27;claire.dubois@entreprise.com&#x27;</span>, 1, NULL, 7500.00, <span class="str">&#x27;2018-01-15&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Directrice&quot;, &quot;anciennete_management&quot;: 8}<span class="str">&#x27;, ARRAY[&#x27;</span>direction<span class="str">&#x27;, &#x27;</span>stratégie&#x27;]),
+(<span class="str">&#x27;Marc Lefèvre&#x27;</span>, <span class="str">&#x27;marc.lefevre@entreprise.com&#x27;</span>, 2, 1, 6200.00, <span class="str">&#x27;2019-03-10&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Directeur Tech&quot;, &quot;langages&quot;: [&quot;Python&quot;, &quot;SQL&quot;]}<span class="str">&#x27;, ARRAY[&#x27;</span>tech<span class="str">&#x27;, &#x27;</span>management&#x27;]),
+(<span class="str">&#x27;Julie Moreau&#x27;</span>, <span class="str">&#x27;julie.moreau@entreprise.com&#x27;</span>, 3, 2, 4800.00, <span class="str">&#x27;2020-06-01&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Développeuse Senior&quot;, &quot;langages&quot;: [&quot;JavaScript&quot;, &quot;SQL&quot;, &quot;Python&quot;], &quot;niveau&quot;: &quot;senior&quot;}&#x27;,
+    <span class="kw">ARRAY</span>[<span class="str">&#x27;dev&#x27;</span>, <span class="str">&#x27;frontend&#x27;</span>, <span class="str">&#x27;backend&#x27;</span>]),
+(<span class="str">&#x27;Thomas Petit&#x27;</span>, <span class="str">&#x27;thomas.petit@entreprise.com&#x27;</span>, 3, 2, 3900.00, <span class="str">&#x27;2022-09-12&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Développeur&quot;, &quot;langages&quot;: [&quot;JavaScript&quot;], &quot;niveau&quot;: &quot;junior&quot;}<span class="str">&#x27;, ARRAY[&#x27;</span>dev<span class="str">&#x27;, &#x27;</span>frontend&#x27;]),
+(<span class="str">&#x27;Nadia Rousseau&#x27;</span>, <span class="str">&#x27;nadia.rousseau@entreprise.com&#x27;</span>, 4, 2, 5100.00, <span class="str">&#x27;2021-02-20&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Data Analyst&quot;, &quot;langages&quot;: [&quot;SQL&quot;, &quot;Python&quot;], &quot;niveau&quot;: &quot;confirmé&quot;}<span class="str">&#x27;, ARRAY[&#x27;</span>data<span class="str">&#x27;, &#x27;</span>analyse&#x27;]),
+(<span class="str">&#x27;Karim Benali&#x27;</span>, <span class="str">&#x27;karim.benali@entreprise.com&#x27;</span>, 5, 1, 4300.00, <span class="str">&#x27;2020-11-05&#x27;</span>,
+    &#x27;{&quot;role&quot;: &quot;Commercial&quot;, &quot;secteur&quot;: &quot;grands comptes&quot;}<span class="str">&#x27;, ARRAY[&#x27;</span>vente<span class="str">&#x27;, &#x27;</span>terrain&#x27;]);
+
+<span class="cmt">-- Projets</span>
+<span class="kw">INSERT INTO</span> projets (nom, date_debut, date_fin, budget) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Refonte site vitrine&#x27;</span>, <span class="str">&#x27;2026-01-10&#x27;</span>, <span class="str">&#x27;2026-04-30&#x27;</span>, 25000.00),
+(<span class="str">&#x27;Migration base de données&#x27;</span>, <span class="str">&#x27;2026-03-01&#x27;</span>, NULL, 40000.00),          <span class="cmt">-- toujours en cours</span>
+(<span class="str">&#x27;Tableau de bord analytique&#x27;</span>, <span class="str">&#x27;2026-05-15&#x27;</span>, NULL, 18000.00);         <span class="cmt">-- toujours en cours</span>
+
+<span class="cmt">-- Tâches</span>
+<span class="kw">INSERT INTO</span> taches (projet_id, employe_id, titre, statut, date_creation, date_echeance) <span class="kw">VALUES</span>
+(1, 3, <span class="str">&#x27;Intégration maquettes&#x27;</span>, <span class="str">&#x27;terminée&#x27;</span>, <span class="str">&#x27;2026-01-12&#x27;</span>, <span class="str">&#x27;2026-02-01&#x27;</span>),
+(1, 4, <span class="str">&#x27;Développement formulaire contact&#x27;</span>, <span class="str">&#x27;terminée&#x27;</span>, <span class="str">&#x27;2026-01-20&#x27;</span>, <span class="str">&#x27;2026-02-10&#x27;</span>),
+(2, 2, <span class="str">&#x27;Audit de l&#x27;</span><span class="str">&#x27;architecture actuelle&#x27;</span>, <span class="str">&#x27;terminée&#x27;</span>, <span class="str">&#x27;2026-03-02&#x27;</span>, <span class="str">&#x27;2026-03-15&#x27;</span>),
+(2, 3, <span class="str">&#x27;Écriture des scripts de migration&#x27;</span>, <span class="str">&#x27;en cours&#x27;</span>, <span class="str">&#x27;2026-03-16&#x27;</span>, <span class="str">&#x27;2026-05-30&#x27;</span>),
+(3, 5, <span class="str">&#x27;Modélisation des indicateurs&#x27;</span>, <span class="str">&#x27;en cours&#x27;</span>, <span class="str">&#x27;2026-05-16&#x27;</span>, <span class="str">&#x27;2026-06-15&#x27;</span>),
+(3, 5, <span class="str">&#x27;Connexion aux sources de données&#x27;</span>, <span class="str">&#x27;à faire&#x27;</span>, <span class="str">&#x27;2026-05-20&#x27;</span>, <span class="str">&#x27;2026-07-01&#x27;</span>);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 3. CTE RÉCURSIVE - parcourir la hiérarchie des départements</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Rappel : une CTE récursive s&#x27;appelle elle-même jusqu&#x27;à épuisement</span>
+<span class="cmt">-- des lignes trouvées. Indispensable ici car on ignore à l&#x27;avance</span>
+<span class="cmt">-- combien de niveaux de sous-départements existent.</span>
+
+<span class="kw">WITH RECURSIVE</span> arbre_departements <span class="kw">AS</span> (
+    <span class="cmt">-- ANCRAGE : on part du département racine &quot;Direction&quot;</span>
+    <span class="kw">SELECT</span> id, nom, departement_parent_id, 1 <span class="kw">AS</span> niveau
+    <span class="kw">FROM</span> departements
+    <span class="kw">WHERE</span> departement_parent_id <span class="kw">IS NULL</span>
+
+    UNION ALL
+
+    <span class="cmt">-- RÉCURSION : on cherche les départements dont le parent est déjà dans le résultat</span>
+    <span class="kw">SELECT</span> d.id, d.nom, d.departement_parent_id, ad.niveau + 1
+    <span class="kw">FROM</span> departements d
+    <span class="kw">JOIN</span> arbre_departements ad <span class="kw">ON</span> d.departement_parent_id = ad.id
+    <span class="kw">WHERE</span> ad.niveau &lt; 10                    <span class="cmt">-- sécurité anti-boucle infinie</span>
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> arbre_departements
+<span class="kw">ORDER BY</span> niveau, nom;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- id | nom            | departement_parent_id | niveau</span>
+<span class="cmt">-- 1  | Direction      | NULL                   | 1</span>
+<span class="cmt">-- 5  | Commercial     | 1                      | 2</span>
+<span class="cmt">-- 2  | Tech           | 1                      | 2</span>
+<span class="cmt">-- 4  | Data           | 2                      | 3</span>
+<span class="cmt">-- 3  | Développement  | 2                      | 3</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 4. CTE RÉCURSIVE - remonter la chaîne hiérarchique d&#x27;un employé</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Variante utile : afficher tous les managers successifs d&#x27;un employé,</span>
+<span class="cmt">-- jusqu&#x27;au sommet de l&#x27;organisation (manager_id IS NULL)</span>
+
+<span class="kw">WITH RECURSIVE</span> chaine_management <span class="kw">AS</span> (
+    <span class="cmt">-- ANCRAGE : on part de l&#x27;employé recherché</span>
+    <span class="kw">SELECT</span> id, nom, manager_id, 1 <span class="kw">AS</span> niveau
+    <span class="kw">FROM</span> employes
+    <span class="kw">WHERE</span> nom = <span class="str">&#x27;Thomas Petit&#x27;</span>
+
+    UNION ALL
+
+    <span class="cmt">-- RÉCURSION : on remonte vers le manager de la ligne précédente</span>
+    <span class="kw">SELECT</span> e.id, e.nom, e.manager_id, cm.niveau + 1
+    <span class="kw">FROM</span> employes e
+    <span class="kw">JOIN</span> chaine_management cm <span class="kw">ON</span> e.id = cm.manager_id
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> chaine_management
+<span class="kw">ORDER BY</span> niveau;
+<span class="cmt">-- Résultat attendu : Thomas Petit -&gt; Marc Lefèvre -&gt; Claire Dubois</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- id | nom            | manager_id | niveau</span>
+<span class="cmt">-- 4  | Thomas Petit   | 2          | 1</span>
+<span class="cmt">-- 2  | Marc Lefèvre   | 1          | 2</span>
+<span class="cmt">-- 1  | Claire Dubois  | NULL       | 3</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 5. CTE CLASSIQUE + FONCTIONS DE FENÊTRAGE</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Classement des salaires par département, sans fusionner les lignes</span>
+
+<span class="kw">SELECT</span> nom, departement_id, salaire,
+       <span class="kw">RANK</span>() <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> departement_id <span class="kw">ORDER BY</span> salaire <span class="kw">DESC</span>) <span class="kw">AS</span> rang_departement,
+                                        <span class="cmt">-- classement indépendant pour chaque département</span>
+       <span class="kw">ROUND</span>(<span class="kw">AVG</span>(salaire) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> departement_id), 2) <span class="kw">AS</span> moyenne_departement
+                                        <span class="cmt">-- moyenne du département, affichée sur CHAQUE ligne</span>
+                                        <span class="cmt">-- (contrairement à GROUP BY qui fusionnerait les lignes)</span>
+<span class="kw">FROM</span> employes
+<span class="kw">ORDER BY</span> departement_id, rang_departement;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu (extrait) :</span>
+<span class="cmt">-- nom            | departement_id | salaire | rang_departement | moyenne_departement</span>
+<span class="cmt">-- Claire Dubois  | 1              | 7500.00 | 1                | 7500.00</span>
+<span class="cmt">-- Marc Lefèvre   | 2              | 6200.00 | 1                | 6200.00</span>
+<span class="cmt">-- Julie Moreau   | 3              | 4800.00 | 1                | 4350.00</span>
+<span class="cmt">-- Thomas Petit   | 3              | 3900.00 | 2                | 4350.00</span>
+<span class="cmt">-- Nadia Rousseau | 4              | 5100.00 | 1                | 5100.00</span>
+<span class="cmt">-- Karim Benali   | 5              | 4300.00 | 1                | 4300.00</span>
+<span class="cmt">-- -&gt; chaque ligne individuelle est conservée (contrairement à GROUP BY)</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- Cumul progressif du budget des projets, triés par date de début</span>
+<span class="kw">SELECT</span> nom, date_debut, budget,
+       <span class="kw">SUM</span>(budget) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> date_debut) <span class="kw">AS</span> budget_cumule
+<span class="kw">FROM</span> projets
+<span class="kw">ORDER BY</span> date_debut;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- nom                          | date_debut | budget   | budget_cumule</span>
+<span class="cmt">-- Refonte site vitrine         | 2026-01-10 | 25000.00 | 25000.00</span>
+<span class="cmt">-- Migration base de données    | 2026-03-01 | 40000.00 | 65000.00</span>
+<span class="cmt">-- Tableau de bord analytique   | 2026-05-15 | 18000.00 | 83000.00</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 6. SOUS-REQUÊTES AVANCÉES</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- EXISTS : employés ayant au moins une tâche assignée</span>
+<span class="kw">SELECT</span> nom
+<span class="kw">FROM</span> employes e
+<span class="kw">WHERE</span> <span class="kw">EXISTS</span> (
+    <span class="kw">SELECT</span> 1 <span class="kw">FROM</span> taches t <span class="kw">WHERE</span> t.employe_id = e.id
+);
+<span class="cmt">-- Résultat attendu : Julie Moreau, Thomas Petit, Marc Lefèvre, Nadia Rousseau</span>
+
+<span class="cmt">-- NOT EXISTS : employés sans AUCUNE tâche assignée</span>
+<span class="kw">SELECT</span> nom
+<span class="kw">FROM</span> employes e
+<span class="kw">WHERE</span> <span class="kw">NOT EXISTS</span> (
+    <span class="kw">SELECT</span> 1 <span class="kw">FROM</span> taches t <span class="kw">WHERE</span> t.employe_id = e.id
+);
+<span class="cmt">-- Résultat attendu : Claire Dubois, Karim Benali</span>
+
+<span class="cmt">-- Sous-requête scalaire dans WHERE : employés payés au-dessus de la moyenne générale</span>
+<span class="kw">SELECT</span> nom, salaire
+<span class="kw">FROM</span> employes
+<span class="kw">WHERE</span> salaire &gt; (<span class="kw">SELECT</span> <span class="kw">AVG</span>(salaire) <span class="kw">FROM</span> employes);
+<span class="cmt">-- Moyenne générale ≈ 5300.00 -&gt; Résultat attendu : Claire Dubois (7500), Marc Lefèvre (6200)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 7. CASE WHEN - catégoriser les salaires</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="kw">SELECT</span> nom, salaire,
+    <span class="kw">CASE</span>
+        <span class="kw">WHEN</span> salaire &lt; 4000 <span class="kw">THEN</span> <span class="str">&#x27;Junior&#x27;</span>
+        <span class="kw">WHEN</span> salaire <span class="kw">BETWEEN</span> 4000 <span class="kw">AND</span> 6000 <span class="kw">THEN</span> <span class="str">&#x27;Confirmé&#x27;</span>
+        <span class="kw">ELSE</span> <span class="str">&#x27;Senior / Management&#x27;</span>
+    <span class="kw">END</span> <span class="kw">AS</span> tranche_salariale
+<span class="kw">FROM</span> employes
+<span class="kw">ORDER BY</span> salaire <span class="kw">DESC</span>;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- Claire Dubois  (7500.00) -&gt; Senior / Management</span>
+<span class="cmt">-- Marc Lefèvre   (6200.00) -&gt; Senior / Management</span>
+<span class="cmt">-- Nadia Rousseau (5100.00) -&gt; Confirmé</span>
+<span class="cmt">-- Julie Moreau   (4800.00) -&gt; Confirmé</span>
+<span class="cmt">-- Karim Benali   (4300.00) -&gt; Confirmé</span>
+<span class="cmt">-- Thomas Petit   (3900.00) -&gt; Junior</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 8. COALESCE - afficher un manager par défaut</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="kw">SELECT</span> e.nom <span class="kw">AS</span> employe,
+       <span class="kw">COALESCE</span>(m.nom, <span class="str">&#x27;Aucun manager (sommet de la hiérarchie)&#x27;</span>) <span class="kw">AS</span> manager
+<span class="kw">FROM</span> employes e
+<span class="kw">LEFT JOIN</span> employes m <span class="kw">ON</span> e.manager_id = m.id;
+                                        <span class="cmt">-- LEFT JOIN nécessaire pour garder Claire Dubois</span>
+                                        <span class="cmt">-- (sans manager) dans le résultat</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu (extrait) :</span>
+<span class="cmt">-- Claire Dubois  -&gt; Aucun manager (sommet de la hiérarchie)</span>
+<span class="cmt">-- Marc Lefèvre   -&gt; Claire Dubois</span>
+<span class="cmt">-- Julie Moreau   -&gt; Marc Lefèvre</span>
+<span class="cmt">-- Thomas Petit   -&gt; Marc Lefèvre</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 9. FONCTIONS DE DATES</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- Ancienneté de chaque employé, calculée depuis sa date d&#x27;embauche</span>
+<span class="kw">SELECT</span> nom, date_embauche,
+       <span class="kw">AGE</span>(<span class="kw">CURRENT_DATE</span>, date_embauche) <span class="kw">AS</span> anciennete
+<span class="kw">FROM</span> employes
+<span class="kw">ORDER BY</span> date_embauche;
+<span class="cmt">-- Résultat attendu (durées approximatives, calculées depuis aujourd&#x27;hui) :</span>
+<span class="cmt">-- Claire Dubois  (2018-01-15) -&gt; environ 8 ans</span>
+<span class="cmt">-- Marc Lefèvre   (2019-03-10) -&gt; environ 7 ans</span>
+<span class="cmt">-- Julie Moreau   (2020-06-01) -&gt; environ 6 ans</span>
+<span class="cmt">-- Karim Benali   (2020-11-05) -&gt; environ 5-6 ans</span>
+<span class="cmt">-- Nadia Rousseau (2021-02-20) -&gt; environ 5 ans</span>
+<span class="cmt">-- Thomas Petit   (2022-09-12) -&gt; environ 4 ans</span>
+
+<span class="cmt">-- Durée des projets déjà terminés</span>
+<span class="kw">SELECT</span> nom, date_debut, date_fin,
+       (date_fin - date_debut) <span class="kw">AS</span> duree_en_jours
+<span class="kw">FROM</span> projets
+<span class="kw">WHERE</span> date_fin <span class="kw">IS NOT NULL</span>;
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- Refonte site vitrine | 2026-01-10 | 2026-04-30 | 110 jours</span>
+<span class="cmt">-- (les 2 autres projets ont date_fin = NULL, donc exclus par le WHERE)</span>
+
+<span class="cmt">-- Tâches créées par mois (regroupement avec DATE_TRUNC)</span>
+<span class="kw">SELECT</span> <span class="kw">DATE_TRUNC</span>(<span class="str">&#x27;month&#x27;</span>, date_creation) <span class="kw">AS</span> mois,
+       <span class="kw">COUNT</span>(*) <span class="kw">AS</span> nombre_taches
+<span class="kw">FROM</span> taches
+<span class="kw">GROUP BY</span> <span class="kw">DATE_TRUNC</span>(<span class="str">&#x27;month&#x27;</span>, date_creation)
+<span class="kw">ORDER BY</span> mois;
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- 2026-01-01 -&gt; 2 tâches</span>
+<span class="cmt">-- 2026-03-01 -&gt; 2 tâches</span>
+<span class="cmt">-- 2026-05-01 -&gt; 2 tâches</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 10. TYPES AVANCÉS - JSONB et ARRAY</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- Extraire le niveau d&#x27;expérience stocké en JSONB</span>
+<span class="kw">SELECT</span> nom, competences -&gt;&gt; <span class="str">&#x27;role&#x27;</span> <span class="kw">AS</span> role,
+       competences -&gt;&gt; <span class="str">&#x27;niveau&#x27;</span> <span class="kw">AS</span> niveau
+<span class="kw">FROM</span> employes
+<span class="kw">WHERE</span> competences ? <span class="str">&#x27;niveau&#x27;</span>;           <span class="cmt">-- uniquement les employés ayant ce champ renseigné</span>
+<span class="cmt">-- Résultat attendu : Julie Moreau (senior), Thomas Petit (junior), Nadia Rousseau (confirmé)</span>
+
+<span class="cmt">-- Filtrer les employés qui maîtrisent SQL (recherche dans un tableau JSON imbriqué)</span>
+<span class="kw">SELECT</span> nom
+<span class="kw">FROM</span> employes
+<span class="kw">WHERE</span> competences -&gt; <span class="str">&#x27;langages&#x27;</span> @&gt; &#x27;[&quot;SQL&quot;]&#x27;;
+                                        <span class="cmt">-- @&gt; vérifie que le tableau JSON contient &quot;SQL&quot;</span>
+<span class="cmt">-- Résultat attendu : Marc Lefèvre, Julie Moreau, Nadia Rousseau</span>
+
+<span class="cmt">-- Filtrer sur un ARRAY : employés tagués &quot;dev&quot;</span>
+<span class="kw">SELECT</span> nom, tags
+<span class="kw">FROM</span> employes
+<span class="kw">WHERE</span> <span class="str">&#x27;dev&#x27;</span> = <span class="kw">ANY</span>(tags);
+<span class="cmt">-- Résultat attendu : Julie Moreau, Thomas Petit</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 11. INDEX - accélérer les recherches fréquentes</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- email déjà indexé automatiquement grâce à UNIQUE</span>
+<span class="cmt">-- Indexer manuellement les clés étrangères souvent utilisées en jointure</span>
+<span class="kw">CREATE INDEX</span> idx_employes_manager <span class="kw">ON</span> employes (manager_id);
+<span class="kw">CREATE INDEX</span> idx_employes_departement <span class="kw">ON</span> employes (departement_id);
+<span class="kw">CREATE INDEX</span> idx_taches_employe <span class="kw">ON</span> taches (employe_id);
+
+<span class="cmt">-- Vérifier l&#x27;utilisation de l&#x27;index</span>
+<span class="kw">EXPLAIN</span> <span class="kw">SELECT</span> * <span class="kw">FROM</span> employes <span class="kw">WHERE</span> email = <span class="str">&#x27;julie.moreau@entreprise.com&#x27;</span>;
+<span class="cmt">-- Résultat attendu : &quot;Index Scan using employes_email_key&quot; (email est UNIQUE -&gt; index automatique)</span>
+<span class="cmt">-- Sur une aussi petite table, PostgreSQL peut aussi choisir &quot;Seq Scan&quot; malgré l&#x27;index -</span>
+<span class="cmt">-- ce comportement devient significatif à partir de centaines/milliers de lignes</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 12. TRANSACTION - augmenter les salaires d&#x27;un département en toute sécurité</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Toutes les lignes doivent être modifiées ensemble, ou aucune</span>
+<span class="cmt">-- (ex: éviter une augmentation partielle en cas d&#x27;erreur en cours de route)</span>
+
+<span class="kw">BEGIN</span>;
+
+<span class="kw">UPDATE</span> employes
+<span class="kw">SET</span> salaire = salaire * 1.05          <span class="cmt">-- augmentation de 5%</span>
+<span class="kw">WHERE</span> departement_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> departements <span class="kw">WHERE</span> nom = <span class="str">&#x27;Développement&#x27;</span>);
+
+<span class="cmt">-- Vérification avant validation définitive</span>
+<span class="kw">SELECT</span> nom, salaire <span class="kw">FROM</span> employes
+<span class="kw">WHERE</span> departement_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> departements <span class="kw">WHERE</span> nom = <span class="str">&#x27;Développement&#x27;</span>);
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- Julie Moreau  | 5040.00   (4800.00 x 1.05)</span>
+<span class="cmt">-- Thomas Petit  | 4095.00   (3900.00 x 1.05)</span>
+
+<span class="kw">COMMIT</span>;                                <span class="cmt">-- si tout est correct, on valide définitivement</span>
+<span class="cmt">-- ROLLBACK;                           -- (utiliser à la place de COMMIT pour annuler le test)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 13. VUES - requêtes réutilisables</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="cmt">-- Vue : charge de travail actuelle par employé</span>
+<span class="kw">CREATE VIEW</span> charge_travail <span class="kw">AS</span>
+<span class="kw">SELECT</span> e.nom,
+       <span class="kw">COUNT</span>(t.id) <span class="kw">AS</span> nombre_taches,
+       <span class="kw">COUNT</span>(<span class="kw">CASE</span> <span class="kw">WHEN</span> t.statut = <span class="str">&#x27;terminée&#x27;</span> <span class="kw">THEN</span> 1 <span class="kw">END</span>) <span class="kw">AS</span> taches_terminees,
+       <span class="kw">COUNT</span>(<span class="kw">CASE</span> <span class="kw">WHEN</span> t.statut != <span class="str">&#x27;terminée&#x27;</span> <span class="kw">THEN</span> 1 <span class="kw">END</span>) <span class="kw">AS</span> taches_en_attente
+<span class="kw">FROM</span> employes e
+<span class="kw">LEFT JOIN</span> taches t <span class="kw">ON</span> t.employe_id = e.id
+<span class="kw">GROUP BY</span> e.nom;
+
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> charge_travail <span class="kw">ORDER BY</span> taches_en_attente <span class="kw">DESC</span>;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu (extrait) :</span>
+<span class="cmt">-- Nadia Rousseau -&gt; 2 tâches (0 terminée, 2 en attente)</span>
+<span class="cmt">-- Julie Moreau   -&gt; 2 tâches (1 terminée, 1 en attente)</span>
+<span class="cmt">-- Thomas Petit   -&gt; 1 tâche  (1 terminée, 0 en attente)</span>
+<span class="cmt">-- Marc Lefèvre   -&gt; 1 tâche  (1 terminée, 0 en attente)</span>
+<span class="cmt">-- Claire Dubois  -&gt; 0 tâche</span>
+<span class="cmt">-- Karim Benali   -&gt; 0 tâche</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+<span class="cmt">-- Vue : projets actifs (non terminés)</span>
+<span class="kw">CREATE VIEW</span> projets_actifs <span class="kw">AS</span>
+<span class="kw">SELECT</span> nom, date_debut, budget
+<span class="kw">FROM</span> projets
+<span class="kw">WHERE</span> date_fin <span class="kw">IS NULL</span>;
+
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> projets_actifs;
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- RÉCAPITULATIF GÉNÉRAL DES NOTIONS ILLUSTRÉES DANS CE PROJET</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- - Contraintes avancées : CHECK avec IN, auto-référence (REFERENCES sur soi-même)</span>
+<span class="cmt">-- - WITH RECURSIVE : hiérarchie de départements ET chaîne de management</span>
+<span class="cmt">-- - Fonctions de fenêtrage : RANK, AVG OVER, SUM OVER (cumul)</span>
+<span class="cmt">-- - Sous-requêtes : EXISTS, NOT EXISTS, scalaire dans WHERE</span>
+<span class="cmt">-- - CASE WHEN : catégorisation conditionnelle</span>
+<span class="cmt">-- - COALESCE : valeur de repli sur une auto-jointure (management)</span>
+<span class="cmt">-- - Fonctions de dates : AGE, soustraction de dates, DATE_TRUNC</span>
+<span class="cmt">-- - JSONB : structure variable (compétences), opérateurs -&gt;&gt;, ?, @&gt;</span>
+<span class="cmt">-- - ARRAY : tags, opérateur ANY</span>
+<span class="cmt">-- - Index : sur clés étrangères, vérification avec EXPLAIN</span>
+<span class="cmt">-- - Transactions : BEGIN/COMMIT/ROLLBACK sur une mise à jour groupée</span>
+<span class="cmt">-- - Vues : CREATE VIEW pour des rapports réutilisables</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- LIEN POUR REPRENDRE LA SÉANCE (DB Fiddle)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- https://www.db-fiddle.com/f/8UpxFabMH7TY55TbX2h36w/0</span>
+</pre>
+  <div class="note">
+    <strong>⚠️ Point important sur l'ordre des clauses :</strong> en SQL, l'ordre d'écriture est toujours : <code>WHERE</code> puis <code>ORDER BY</code> (jamais l'inverse). Ici le <code>WHERE</code> s'applique sur le résultat de la CTE (<code>total_depense &gt; 50</code>), et le <code>ORDER BY</code> trie ce qui reste après le filtre.
+  </div>
+  <div class="note">
+    <strong>⚠️ Ordre général d'écriture d'une requête SQL (du début à la fin) :</strong><br>
+    1. <code>SELECT</code> — colonnes à afficher<br>
+    2. <code>FROM</code> — table de départ<br>
+    3. <code>JOIN</code> — tables reliées (si besoin)<br>
+    4. <code>WHERE</code> — filtre sur les lignes brutes<br>
+    5. <code>GROUP BY</code> — regroupement (si agrégation)<br>
+    6. <code>HAVING</code> — filtre sur le résultat du regroupement<br>
+    7. <code>ORDER BY</code> — tri du résultat final<br>
+    8. <code>LIMIT</code> — nombre de lignes à garder<br>
+    Cet ordre d'écriture ne change jamais, même si une clause est absente — on saute simplement l'étape non utilisée.
+  </div>
+  <div class="note">
+    <strong>⚠️ PostgreSQL vs autres SGBD (MySQL, SQL Server, Oracle, SQLite) :</strong><br>
+    Le SQL de base (<code>SELECT</code>, <code>WHERE</code>, <code>JOIN</code>, <code>GROUP BY</code>...) est le même partout, mais certaines commandes ne fonctionnent QUE sur PostgreSQL :<br>
+    • <code>SERIAL</code> / <code>BIGSERIAL</code> — spécifique à PostgreSQL. MySQL utilise <code>AUTO_INCREMENT</code>, SQL Server utilise <code>IDENTITY(1,1)</code>.<br>
+    • <code>ILIKE</code> — recherche texte insensible à la casse, propre à PostgreSQL. Sur MySQL/SQL Server, <code>LIKE</code> est déjà insensible à la casse par défaut.<br>
+    • <code>LIMIT ... OFFSET ...</code> — utilisé par PostgreSQL et MySQL. SQL Server utilise <code>TOP</code> ou <code>OFFSET ... FETCH NEXT</code>, Oracle utilise <code>ROWNUM</code> ou <code>FETCH FIRST</code>.<br>
+    • <code>JSONB</code>, <code>ARRAY</code>, types géométriques — types de données avancés propres à PostgreSQL, absents des autres SGBD (ou gérés très différemment).<br>
+    • <code>RETURNING</code> après un <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> — spécifique à PostgreSQL (et SQLite récent), permet de récupérer directement les lignes modifiées.<br>
+    • Guillemets doubles <code>"nom_colonne"</code> pour les identifiants sensibles à la casse — SQL Server utilise plutôt les crochets <code>[nom_colonne]</code>, MySQL les accents graves <code>`nom_colonne`</code>.<br>
+    Retenir : ce qu'on apprend ici (les bases) est transférable partout, mais les fonctionnalités avancées de PostgreSQL ne se retrouvent pas forcément à l'identique ailleurs.
+  </div>
+  <footer>
+    Généré à partir de la session d'apprentissage SQL / PostgreSQL<br>🔗 Reprendre sur DB Fiddle : <a href="https://www.db-fiddle.com/f/8UpxFabMH7TY55TbX2h36w/0" style="color:#7dafff;" target="_blank">https://www.db-fiddle.com/f/8UpxFabMH7TY55TbX2h36w/0</a>
+  </footer>
+</div>
+</body>
+</html>
