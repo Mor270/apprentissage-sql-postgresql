@@ -1,1 +1,0 @@
-# apprentissage-sql-postgresql
