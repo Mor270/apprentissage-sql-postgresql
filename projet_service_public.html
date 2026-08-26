@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Simulation données service public : ADEME</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #262637;
+    --text: #d4d4e0;
+    --kw: #7dafff;
+    --str: #ce9178;
+    --cmt: #6a9955;
+    --border: #3a3a4d;
+    --accent: #f1c40f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: linear-gradient(180deg, #14141f, #1e1e2e);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+  }
+  .wrapper {
+    max-width: 980px;
+    width: 100%;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: #fff;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.3px;
+  }
+  .subtitle {
+    color: #9494ac;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 20px;
+    font-size: 0.82rem;
+    color: #9494ac;
+    flex-wrap: wrap;
+  }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.kw { background: var(--kw); }
+  .dot.str { background: var(--str); }
+  .dot.cmt { background: var(--cmt); }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .kw { color: var(--kw); font-weight: 600; }
+  .str { color: var(--str); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .note {
+    background: #2a1418;
+    border-left: 4px solid #e74c3c;
+    color: #ff8080;
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin-top: 24px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+  .note strong { color: #ff5c5c; }
+  .note code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #ffb3b3;
+    font-family: 'Fira Code', 'Consolas', monospace;
+  }
+  footer {
+    text-align: center;
+    color: #6a6a80;
+    font-size: 0.78rem;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>📘 Simulation données service public : ADEME</h1>
+  <div class="subtitle">Projet pédagogique sur données 100% fictives — gestion de dossiers d'aides et pilotage financier, inspiré du fonctionnement d'un organisme comme l'ADEME</div>
+  <div class="legend">
+    <span><i class="dot kw"></i> Mots-clés SQL</span>
+    <span><i class="dot str"></i> Chaînes de texte</span>
+    <span><i class="dot cmt"></i> Commentaires / explications</span>
+  </div>
+  <pre><span class="cmt">-- ============================================================</span>
+<span class="cmt">-- SIMULATION DONNÉES SERVICE PUBLIC : ADEME</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Auteur : Mor Talla DIENG — Data Analyst RH/Finance</span>
+<span class="cmt">--</span>
+<span class="cmt">-- INTRODUCTION</span>
+<span class="cmt">-- ------------</span>
+<span class="cmt">-- Ce projet est une SIMULATION à but pédagogique, construite pour</span>
+<span class="cmt">-- pratiquer SQL/PostgreSQL sur un cas proche du fonctionnement réel</span>
+<span class="cmt">-- d&#x27;un organisme public de type ADEME (Agence de la transition</span>
+<span class="cmt">-- écologique) : instruction et suivi financier de dossiers d&#x27;aides</span>
+<span class="cmt">-- publiques (subventions énergie, bâtiment, etc.).</span>
+<span class="cmt">--</span>
+<span class="cmt">-- ⚠️ TOUTES les données de ce projet sont FICTIVES et ont été</span>
+<span class="cmt">-- entièrement inventées pour l&#x27;exercice : noms d&#x27;organismes, agents</span>
+<span class="cmt">-- instructeurs, montants, dates, SIRET et emails ne correspondent à</span>
+<span class="cmt">-- aucune donnée réelle ni à aucun organisme ou individu existant.</span>
+<span class="cmt">-- &quot;ADEME&quot; est utilisé ici uniquement comme contexte inspirant un</span>
+<span class="cmt">-- schéma de base de données réaliste, pas comme source de données.</span>
+<span class="cmt">--</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- OBJECTIF DU PROJET</strong></span>
+<span class="cmt">-- -------------------</span>
+<span class="cmt">-- Synthétiser, sur un cas concret à deux volets, l&#x27;ensemble des</span>
+<span class="cmt">-- notions SQL/PostgreSQL travaillées jusqu&#x27;ici :</span>
+<span class="cmt">--   Partie 1 : gestion des dossiers - hiérarchie récursive des</span>
+<span class="cmt">--              catégories d&#x27;aides, fonctions de fenêtrage,</span>
+<span class="cmt">--              sous-requêtes, JSONB/ARRAY, index, transactions, vues</span>
+<span class="cmt">--   Partie 2 : pilotage financier - budget, versements, indicateurs</span>
+<span class="cmt">--              d&#x27;engagement et de reste à verser</span>
+<span class="cmt">-- ============================================================</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 1. CRÉATION DES TABLES</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="kw">CREATE TABLE</span> categories_aides (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,
+    categorie_parent_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> categories_aides(id)
+                                       <span class="cmt">-- auto-référence : NULL = catégorie racine</span>
+);
+
+<span class="kw">CREATE TABLE</span> organismes (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(150) <span class="kw">NOT NULL</span>,
+    siret <span class="kw">VARCHAR</span>(14) <span class="kw">UNIQUE</span> <span class="kw">NOT NULL</span>,
+    secteur <span class="kw">VARCHAR</span>(100),
+    region <span class="kw">VARCHAR</span>(100),
+    taille_effectif <span class="kw">INT</span> <span class="kw">CHECK</span> (taille_effectif &gt; 0)
+);
+
+<span class="kw">CREATE TABLE</span> agents_instructeurs (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    nom <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,
+    email <span class="kw">VARCHAR</span>(100) <span class="kw">UNIQUE</span> <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">CREATE TABLE</span> dossiers_aide (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    organisme_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> organismes(id),
+    categorie_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> categories_aides(id),
+    agent_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> agents_instructeurs(id),
+    montant_demande <span class="kw">NUMERIC</span>(12,2) <span class="kw">CHECK</span> (montant_demande &gt; 0),
+    montant_accorde <span class="kw">NUMERIC</span>(12,2) <span class="kw">CHECK</span> (montant_accorde &gt;= 0),
+    statut <span class="kw">VARCHAR</span>(20) <span class="kw">DEFAULT</span> <span class="str">&#x27;déposé&#x27;</span>
+        <span class="kw">CHECK</span> (statut <span class="kw">IN</span> (<span class="str">&#x27;déposé&#x27;</span>, <span class="str">&#x27;en instruction&#x27;</span>, <span class="str">&#x27;accepté&#x27;</span>, <span class="str">&#x27;refusé&#x27;</span>)),
+    date_depot <span class="kw">DATE</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_DATE</span>,
+    date_decision <span class="kw">DATE</span>,
+    details <span class="kw">JSONB</span>,
+    tags TEXT[]
+);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- 2. INSERTION DES DONNÉES DE TEST</span>
+<span class="cmt">-- ============================================================</span>
+
+<span class="kw">INSERT INTO</span> categories_aides (nom, categorie_parent_id) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Énergie&#x27;</span>, NULL),
+(<span class="str">&#x27;Bâtiment&#x27;</span>, NULL),
+(<span class="str">&#x27;Énergies renouvelables&#x27;</span>, 1),
+(<span class="str">&#x27;Efficacité énergétique&#x27;</span>, 1),
+(<span class="str">&#x27;Isolation&#x27;</span>, 2),
+(<span class="str">&#x27;Solaire photovoltaïque&#x27;</span>, 3),
+(<span class="str">&#x27;Éolien&#x27;</span>, 3);
+
+<span class="kw">INSERT INTO</span> organismes (nom, siret, secteur, region, taille_effectif) <span class="kw">VALUES</span>
+(<span class="str">&#x27;EcoBât Solutions&#x27;</span>, <span class="str">&#x27;12345678900011&#x27;</span>, <span class="str">&#x27;BTP&#x27;</span>, <span class="str">&#x27;Bretagne&#x27;</span>, 45),
+(<span class="str">&#x27;SolarTech Industries&#x27;</span>, <span class="str">&#x27;23456789000122&#x27;</span>, <span class="str">&#x27;Énergie&#x27;</span>, <span class="str">&#x27;Occitanie&#x27;</span>, 120),
+(<span class="str">&#x27;Ville de Rennes&#x27;</span>, <span class="str">&#x27;34567890000133&#x27;</span>, <span class="str">&#x27;Collectivité&#x27;</span>, <span class="str">&#x27;Bretagne&#x27;</span>, 3200),
+(<span class="str">&#x27;Ferme Éolienne du Nord&#x27;</span>, <span class="str">&#x27;45678901000144&#x27;</span>, <span class="str">&#x27;Énergie&#x27;</span>, <span class="str">&#x27;Hauts-de-France&#x27;</span>, 12),
+(<span class="str">&#x27;Coopérative AgriVert&#x27;</span>, <span class="str">&#x27;56789012000155&#x27;</span>, <span class="str">&#x27;Agriculture&#x27;</span>, <span class="str">&#x27;Nouvelle-Aquitaine&#x27;</span>, 28);
+
+<span class="kw">INSERT INTO</span> agents_instructeurs (nom, email) <span class="kw">VALUES</span>
+(<span class="str">&#x27;Élise Fontaine&#x27;</span>, <span class="str">&#x27;elise.fontaine@ademe-fictif.fr&#x27;</span>),
+(<span class="str">&#x27;Hugo Lambert&#x27;</span>, <span class="str">&#x27;hugo.lambert@ademe-fictif.fr&#x27;</span>),
+(<span class="str">&#x27;Camille Roy&#x27;</span>, <span class="str">&#x27;camille.roy@ademe-fictif.fr&#x27;</span>);
+
+<span class="kw">INSERT INTO</span> dossiers_aide (organisme_id, categorie_id, agent_id, montant_demande, montant_accorde, statut, date_depot, date_decision, details, tags) <span class="kw">VALUES</span>
+(1, 5, 1, 45000.00, 38000.00, <span class="str">&#x27;accepté&#x27;</span>, <span class="str">&#x27;2026-01-15&#x27;</span>, <span class="str">&#x27;2026-03-01&#x27;</span>,
+    &#x27;{&quot;technologie&quot;: &quot;isolation extérieure&quot;, &quot;surface_m2&quot;: 850}<span class="str">&#x27;, ARRAY[&#x27;</span>bâtiment<span class="str">&#x27;, &#x27;</span>rénovation&#x27;]),
+(2, 6, 2, 120000.00, NULL, <span class="str">&#x27;en instruction&#x27;</span>, <span class="str">&#x27;2026-02-20&#x27;</span>, NULL,
+    &#x27;{&quot;technologie&quot;: &quot;panneaux photovoltaïques&quot;, &quot;puissance_kwc&quot;: 250}<span class="str">&#x27;, ARRAY[&#x27;</span>solaire<span class="str">&#x27;, &#x27;</span>production&#x27;]),
+(3, 4, 1, 78000.00, 78000.00, <span class="str">&#x27;accepté&#x27;</span>, <span class="str">&#x27;2026-01-05&#x27;</span>, <span class="str">&#x27;2026-02-10&#x27;</span>,
+    &#x27;{&quot;technologie&quot;: &quot;rénovation éclairage public&quot;, &quot;nb_points_lumineux&quot;: 1200}<span class="str">&#x27;, ARRAY[&#x27;</span>collectivité<span class="str">&#x27;, &#x27;</span>éclairage&#x27;]),
+(4, 7, 3, 350000.00, NULL, <span class="str">&#x27;déposé&#x27;</span>, <span class="str">&#x27;2026-04-10&#x27;</span>, NULL,
+    &#x27;{&quot;technologie&quot;: &quot;éoliennes terrestres&quot;, &quot;nb_machines&quot;: 3}<span class="str">&#x27;, ARRAY[&#x27;</span>éolien<span class="str">&#x27;, &#x27;</span>production&#x27;]),
+(5, 3, 2, 62000.00, 0.00, <span class="str">&#x27;refusé&#x27;</span>, <span class="str">&#x27;2026-02-01&#x27;</span>, <span class="str">&#x27;2026-03-20&#x27;</span>,
+    &#x27;{&quot;technologie&quot;: &quot;méthanisation&quot;, &quot;motif_refus&quot;: &quot;dossier incomplet&quot;}<span class="str">&#x27;, ARRAY[&#x27;</span>agriculture<span class="str">&#x27;, &#x27;</span>biogaz&#x27;]),
+(1, 6, 1, 30000.00, NULL, <span class="str">&#x27;en instruction&#x27;</span>, <span class="str">&#x27;2026-05-01&#x27;</span>, NULL,
+    &#x27;{&quot;technologie&quot;: &quot;panneaux photovoltaïques&quot;, &quot;puissance_kwc&quot;: 80}<span class="str">&#x27;, ARRAY[&#x27;</span>solaire<span class="str">&#x27;, &#x27;</span>bâtiment&#x27;]);
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 1 - CTE RÉCURSIVE : hiérarchie complète des catégories d&#x27;aides</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Afficher toutes les catégories d&#x27;aides avec leur niveau de profondeur, en descendant automatiquement dans la hiérarchie parent/enfant, quel que soit le nombre de niveaux.</strong></span>
+
+<span class="kw">WITH RECURSIVE</span> arbre_categories <span class="kw">AS</span> (
+    <span class="kw">SELECT</span> id, nom, categorie_parent_id, 1 <span class="kw">AS</span> niveau
+    <span class="kw">FROM</span> categories_aides
+    <span class="kw">WHERE</span> categorie_parent_id <span class="kw">IS NULL</span>
+
+    UNION ALL
+
+    <span class="kw">SELECT</span> c.id, c.nom, c.categorie_parent_id, ac.niveau + 1
+    <span class="kw">FROM</span> categories_aides c
+    <span class="kw">JOIN</span> arbre_categories ac <span class="kw">ON</span> c.categorie_parent_id = ac.id
+    <span class="kw">WHERE</span> ac.niveau &lt; 10
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> arbre_categories
+<span class="kw">ORDER BY</span> niveau, nom;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- id | nom                      | categorie_parent_id | niveau</span>
+<span class="cmt">-- 2  | Bâtiment                 | NULL                 | 1</span>
+<span class="cmt">-- 1  | Énergie                  | NULL                 | 1</span>
+<span class="cmt">-- 4  | Efficacité énergétique   | 1                    | 2</span>
+<span class="cmt">-- 3  | Énergies renouvelables   | 1                    | 2</span>
+<span class="cmt">-- 5  | Isolation                | 2                    | 2</span>
+<span class="cmt">-- 7  | Éolien                   | 3                    | 3</span>
+<span class="cmt">-- 6  | Solaire photovoltaïque   | 3                    | 3</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 2 - FONCTIONS DE FENÊTRAGE : classement des montants par région</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Classer chaque dossier par montant demandé au sein de sa région, tout en gardant chaque ligne individuelle visible (contrairement à un simple GROUP BY).</strong></span>
+
+<span class="kw">SELECT</span> o.region, o.nom <span class="kw">AS</span> organisme, d.montant_demande,
+       <span class="kw">RANK</span>() <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> o.region <span class="kw">ORDER BY</span> d.montant_demande <span class="kw">DESC</span>) <span class="kw">AS</span> rang_region,
+       <span class="kw">ROUND</span>(<span class="kw">AVG</span>(d.montant_demande) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> o.region), 2) <span class="kw">AS</span> moyenne_region
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id
+<span class="kw">ORDER BY</span> o.region, rang_region;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu (extrait) :</span>
+<span class="cmt">-- Bretagne : Ville de Rennes (78000, rang 1) puis EcoBât Solutions x2 (45000 rang 2, 30000 rang 3)</span>
+<span class="cmt">-- Occitanie : SolarTech Industries (120000, rang 1)</span>
+<span class="cmt">-- Hauts-de-France : Ferme Éolienne du Nord (350000, rang 1)</span>
+<span class="cmt">-- Nouvelle-Aquitaine : Coopérative AgriVert (62000, rang 1)</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 3 - CASE WHEN : taux de traitement par statut</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Transformer les codes de statut bruts en libellés compréhensibles pour un rapport destiné à des non-techniciens.</strong></span>
+
+<span class="kw">SELECT</span> nom,
+    <span class="kw">CASE</span> statut
+        <span class="kw">WHEN</span> <span class="str">&#x27;accepté&#x27;</span> <span class="kw">THEN</span> <span class="str">&#x27;Financement validé&#x27;</span>
+        <span class="kw">WHEN</span> <span class="str">&#x27;refusé&#x27;</span> <span class="kw">THEN</span> <span class="str">&#x27;Financement rejeté&#x27;</span>
+        <span class="kw">WHEN</span> <span class="str">&#x27;en instruction&#x27;</span> <span class="kw">THEN</span> <span class="str">&#x27;En cours d&#x27;</span><span class="str">&#x27;analyse&#x27;</span>
+        <span class="kw">ELSE</span> <span class="str">&#x27;Dossier récent, non traité&#x27;</span>
+    <span class="kw">END</span> <span class="kw">AS</span> statut_lisible
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id;
+<span class="cmt">-- Résultat attendu : chaque organisme avec un libellé humain au lieu du code statut brut</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 4 - COALESCE : afficher un montant accordé par défaut</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Éviter d&#x27;afficher des valeurs vides (NULL) pour les dossiers pas encore décidés, en les remplaçant par une valeur ou un texte par défaut.</strong></span>
+
+<span class="kw">SELECT</span> o.nom, d.montant_demande,
+       <span class="kw">COALESCE</span>(d.montant_accorde, 0) <span class="kw">AS</span> montant_accorde_affiche,
+       <span class="kw">COALESCE</span>(d.date_decision::TEXT, <span class="str">&#x27;Décision en attente&#x27;</span>) <span class="kw">AS</span> decision
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id;
+<span class="cmt">-- Résultat attendu : les dossiers &quot;en instruction&quot;/&quot;déposé&quot; affichent 0 au lieu de NULL,</span>
+<span class="cmt">-- et &quot;Décision en attente&quot; au lieu d&#x27;une date vide</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 5 - SOUS-REQUÊTES : organismes sans aucun dossier accepté</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Identifier les organismes qui n&#x27;ont encore reçu aucune validation, pour un suivi ciblé de leur dossier.</strong></span>
+
+<span class="kw">SELECT</span> o.nom
+<span class="kw">FROM</span> organismes o
+<span class="kw">WHERE</span> <span class="kw">NOT EXISTS</span> (
+    <span class="kw">SELECT</span> 1 <span class="kw">FROM</span> dossiers_aide d
+    <span class="kw">WHERE</span> d.organisme_id = o.id <span class="kw">AND</span> d.statut = <span class="str">&#x27;accepté&#x27;</span>
+);
+<span class="cmt">-- Résultat attendu : SolarTech Industries, Ferme Éolienne du Nord, Coopérative AgriVert</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 6 - JSONB : extraire la puissance des projets solaires</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Extraire une donnée technique précise (puissance en kWc) stockée dans un champ JSON à structure variable, sans avoir besoin d&#x27;une colonne dédiée dans la table.</strong></span>
+
+<span class="kw">SELECT</span> o.nom, d.details -&gt;&gt; <span class="str">&#x27;technologie&#x27;</span> <span class="kw">AS</span> technologie,
+       (d.details -&gt;&gt; <span class="str">&#x27;puissance_kwc&#x27;</span>)::<span class="kw">NUMERIC</span> <span class="kw">AS</span> puissance_kwc
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id
+<span class="kw">WHERE</span> d.details ? <span class="str">&#x27;puissance_kwc&#x27;</span>
+<span class="kw">ORDER BY</span> puissance_kwc <span class="kw">DESC</span>;
+<span class="cmt">-- Résultat attendu : SolarTech Industries (250 kWc), EcoBât Solutions (80 kWc)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 7 - ARRAY : dossiers tagués &quot;production&quot;</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Retrouver rapidement tous les dossiers liés à une thématique donnée grâce à leurs tags, sans jointure supplémentaire.</strong></span>
+
+<span class="kw">SELECT</span> o.nom, d.tags
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id
+<span class="kw">WHERE</span> <span class="str">&#x27;production&#x27;</span> = <span class="kw">ANY</span>(d.tags);
+<span class="cmt">-- Résultat attendu : SolarTech Industries, Ferme Éolienne du Nord</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 8 - INDEX : accélérer la recherche par SIRET</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Vérifier que les recherches fréquentes (par SIRET, par organisme, par statut) s&#x27;appuient bien sur un index plutôt que sur un parcours complet de la table.</strong></span>
+
+<span class="cmt">-- siret déjà indexé automatiquement grâce à UNIQUE</span>
+<span class="kw">CREATE INDEX</span> idx_dossiers_organisme <span class="kw">ON</span> dossiers_aide (organisme_id);
+<span class="kw">CREATE INDEX</span> idx_dossiers_agent <span class="kw">ON</span> dossiers_aide (agent_id);
+<span class="kw">CREATE INDEX</span> idx_dossiers_statut <span class="kw">ON</span> dossiers_aide (statut);
+
+<span class="kw">EXPLAIN</span> <span class="kw">SELECT</span> * <span class="kw">FROM</span> organismes <span class="kw">WHERE</span> siret = <span class="str">&#x27;23456789000122&#x27;</span>;
+<span class="cmt">-- Résultat attendu : &quot;Index Scan using organismes_siret_key&quot;</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 9 - TRANSACTION : valider un dossier en instruction</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Faire passer un dossier de &quot;en instruction&quot; à &quot;accepté&quot; en garantissant que le changement de statut ET le montant accordé soient appliqués ensemble, ou pas du tout en cas d&#x27;erreur.</strong></span>
+
+<span class="kw">BEGIN</span>;
+
+<span class="kw">UPDATE</span> dossiers_aide
+<span class="kw">SET</span> statut = <span class="str">&#x27;accepté&#x27;</span>,
+    montant_accorde = 100000.00,
+    date_decision = <span class="kw">CURRENT_DATE</span>
+<span class="kw">WHERE</span> organisme_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> organismes <span class="kw">WHERE</span> nom = <span class="str">&#x27;SolarTech Industries&#x27;</span>)
+  <span class="kw">AND</span> statut = <span class="str">&#x27;en instruction&#x27;</span>;
+
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> dossiers_aide
+<span class="kw">WHERE</span> organisme_id = (<span class="kw">SELECT</span> id <span class="kw">FROM</span> organismes <span class="kw">WHERE</span> nom = <span class="str">&#x27;SolarTech Industries&#x27;</span>);
+<span class="cmt">-- Résultat attendu : le dossier SolarTech passe à &quot;accepté&quot;, montant_accorde = 100000.00</span>
+
+<span class="kw">COMMIT</span>;
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- EXERCICE 10 - VUE : tableau de bord des dossiers par catégorie</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : Créer un rapport réutilisable donnant en un coup d&#x27;œil le nombre de dossiers et les montants totaux par catégorie d&#x27;aide, sans avoir à réécrire la requête à chaque consultation.</strong></span>
+
+<span class="kw">CREATE VIEW</span> bilan_categories <span class="kw">AS</span>
+<span class="kw">SELECT</span> c.nom <span class="kw">AS</span> categorie,
+       <span class="kw">COUNT</span>(d.id) <span class="kw">AS</span> nombre_dossiers,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_demande), 0) <span class="kw">AS</span> total_demande,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) <span class="kw">AS</span> total_accorde
+<span class="kw">FROM</span> categories_aides c
+<span class="kw">LEFT JOIN</span> dossiers_aide d <span class="kw">ON</span> d.categorie_id = c.id
+<span class="kw">GROUP BY</span> c.nom;
+
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> bilan_categories <span class="kw">ORDER BY</span> total_demande <span class="kw">DESC</span>;
+<span class="cmt">-- Résultat attendu : une ligne par catégorie, y compris celles sans dossier (0 partout)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- PARTIE 2 - DONNÉES FINANCIÈRES : ENVELOPPES, VERSEMENTS, INDICATEURS</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- Objectif : suivre le pilotage financier des aides -</strong></span>
+<span class="cmt">-- budget alloué par catégorie/année, paiements réels effectués,</span>
+<span class="cmt">-- et indicateurs globaux (taux d&#x27;engagement, reste à verser, prévisionnel)</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- 14. NOUVELLES TABLES</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+<span class="kw">CREATE TABLE</span> enveloppes_budgetaires (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    categorie_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> categories_aides(id),
+    annee <span class="kw">INT</span> <span class="kw">NOT NULL</span>,
+    budget_alloue <span class="kw">NUMERIC</span>(14,2) <span class="kw">CHECK</span> (budget_alloue &gt; 0),
+    <span class="kw">UNIQUE</span> (categorie_id, annee)          <span class="cmt">-- une seule enveloppe par catégorie et par année</span>
+);
+
+<span class="kw">CREATE TABLE</span> versements (
+    id <span class="kw">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    dossier_id <span class="kw">INT</span> <span class="kw">REFERENCES</span> dossiers_aide(id),
+    montant <span class="kw">NUMERIC</span>(12,2) <span class="kw">CHECK</span> (montant &gt; 0),
+    date_versement <span class="kw">DATE</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_DATE</span>
+);
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- 15. DONNÉES DE TEST FINANCIÈRES</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+<span class="kw">INSERT INTO</span> enveloppes_budgetaires (categorie_id, annee, budget_alloue) <span class="kw">VALUES</span>
+(3, 2026, 500000.00),   <span class="cmt">-- Énergies renouvelables</span>
+(4, 2026, 200000.00),   <span class="cmt">-- Efficacité énergétique</span>
+(5, 2026, 150000.00),   <span class="cmt">-- Isolation</span>
+(6, 2026, 400000.00),   <span class="cmt">-- Solaire photovoltaïque</span>
+(7, 2026, 600000.00);   <span class="cmt">-- Éolien</span>
+
+<span class="cmt">-- Versements échelonnés pour les dossiers déjà acceptés (id=1, id=3, et id=2 après validation)</span>
+<span class="kw">INSERT INTO</span> versements (dossier_id, montant, date_versement) <span class="kw">VALUES</span>
+(1, 19000.00, <span class="str">&#x27;2026-03-15&#x27;</span>),   <span class="cmt">-- EcoBât : 1er versement (50% de 38000)</span>
+(1, 19000.00, <span class="str">&#x27;2026-06-15&#x27;</span>),   <span class="cmt">-- EcoBât : solde</span>
+(3, 78000.00, <span class="str">&#x27;2026-02-20&#x27;</span>),   <span class="cmt">-- Ville de Rennes : versement unique</span>
+(2, 50000.00, <span class="str">&#x27;2026-06-10&#x27;</span>);   <span class="cmt">-- SolarTech : 1er acompte (sur les 100000 validés en transaction)</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- EXERCICE 11 - TAUX D&#x27;ENGAGEMENT par catégorie et par année</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : mesurer, pour chaque catégorie d&#x27;aide, quelle proportion du</strong></span>
+<span class="cmt">-- budget alloué a déjà été engagée par des décisions favorables.</span>
+<span class="cmt">-- Rapport entre le montant déjà accordé (engagé) et le budget alloué</span>
+
+<span class="kw">SELECT</span> c.nom <span class="kw">AS</span> categorie, e.annee, e.budget_alloue,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) <span class="kw">AS</span> montant_engage,
+       <span class="kw">ROUND</span>(<span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) / e.budget_alloue * 100, 2) <span class="kw">AS</span> taux_engagement_pct
+<span class="kw">FROM</span> enveloppes_budgetaires e
+<span class="kw">JOIN</span> categories_aides c <span class="kw">ON</span> e.categorie_id = c.id
+<span class="kw">LEFT JOIN</span> dossiers_aide d <span class="kw">ON</span> d.categorie_id = e.categorie_id <span class="kw">AND</span> d.statut = <span class="str">&#x27;accepté&#x27;</span>
+<span class="kw">GROUP BY</span> c.nom, e.annee, e.budget_alloue
+<span class="kw">ORDER BY</span> taux_engagement_pct <span class="kw">DESC</span>;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu (extrait) :</span>
+<span class="cmt">-- Isolation              | 150000 | 38000  | 25.33 %</span>
+<span class="cmt">-- Efficacité énergétique | 200000 | 78000  | 39.00 %</span>
+<span class="cmt">-- Solaire photovoltaïque | 400000 | 100000 | 25.00 % (après validation du dossier SolarTech)</span>
+<span class="cmt">-- Énergies renouvelables | 500000 | 0      | 0.00 %</span>
+<span class="cmt">-- Éolien                 | 600000 | 0      | 0.00 %</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- EXERCICE 12 - RESTE À VERSER par dossier accepté</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : suivre, pour chaque dossier validé, le montant qu&#x27;il reste</strong></span>
+<span class="cmt">-- concrètement à payer à l&#x27;organisme bénéficiaire.</span>
+<span class="cmt">-- Différence entre ce qui a été accordé et ce qui a déjà été payé</span>
+
+<span class="kw">SELECT</span> o.nom <span class="kw">AS</span> organisme, d.montant_accorde,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(v.montant), 0) <span class="kw">AS</span> deja_verse,
+       d.montant_accorde - <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(v.montant), 0) <span class="kw">AS</span> reste_a_verser
+<span class="kw">FROM</span> dossiers_aide d
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id
+<span class="kw">LEFT JOIN</span> versements v <span class="kw">ON</span> v.dossier_id = d.id
+<span class="kw">WHERE</span> d.statut = <span class="str">&#x27;accepté&#x27;</span>
+<span class="kw">GROUP BY</span> o.nom, d.montant_accorde
+<span class="kw">ORDER BY</span> reste_a_verser <span class="kw">DESC</span>;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- SolarTech Industries | 100000.00 | 50000.00 | 50000.00   (reste à verser)</span>
+<span class="cmt">-- Ville de Rennes      | 78000.00  | 78000.00 | 0.00       (soldé)</span>
+<span class="cmt">-- EcoBât Solutions     | 38000.00  | 38000.00 | 0.00       (soldé)</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- EXERCICE 13 - CUMUL PROGRESSIF DES VERSEMENTS (fonction de fenêtrage)</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : visualiser l&#x27;évolution de la trésorerie réellement décaissée</strong></span>
+<span class="cmt">-- au fil du temps, tous dossiers confondus.</span>
+<span class="cmt">-- Suivi du budget effectivement décaissé au fil du temps, tous dossiers confondus</span>
+
+<span class="kw">SELECT</span> v.date_versement, o.nom <span class="kw">AS</span> organisme, v.montant,
+       <span class="kw">SUM</span>(v.montant) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> v.date_versement) <span class="kw">AS</span> montant_cumule_verse
+<span class="kw">FROM</span> versements v
+<span class="kw">JOIN</span> dossiers_aide d <span class="kw">ON</span> v.dossier_id = d.id
+<span class="kw">JOIN</span> organismes o <span class="kw">ON</span> d.organisme_id = o.id
+<span class="kw">ORDER BY</span> v.date_versement;
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- Résultat attendu :</span>
+<span class="cmt">-- 2026-02-20 | Ville de Rennes  | 78000.00 | 78000.00</span>
+<span class="cmt">-- 2026-03-15 | EcoBât Solutions | 19000.00 | 97000.00</span>
+<span class="cmt">-- 2026-06-10 | SolarTech Ind.   | 50000.00 | 147000.00</span>
+<span class="cmt">-- 2026-06-15 | EcoBât Solutions | 19000.00 | 166000.00</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- EXERCICE 14 - PRÉVISIONNEL : projection simple du reste à engager</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : anticiper le risque de dépassement budgétaire en classant</strong></span>
+<span class="cmt">-- chaque catégorie selon son niveau d&#x27;engagement actuel.</span>
+<span class="cmt">-- Estimation du budget encore disponible par catégorie, avec un indicateur</span>
+<span class="cmt">-- CASE WHEN pour signaler le niveau d&#x27;alerte budgétaire</span>
+
+<span class="kw">SELECT</span> c.nom <span class="kw">AS</span> categorie, e.budget_alloue,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) <span class="kw">AS</span> engage,
+       e.budget_alloue - <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) <span class="kw">AS</span> budget_restant,
+    <span class="kw">CASE</span>
+        <span class="kw">WHEN</span> <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) / e.budget_alloue &gt;= 0.8 <span class="kw">THEN</span> <span class="str">&#x27;Alerte - budget bientôt épuisé&#x27;</span>
+        <span class="kw">WHEN</span> <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(d.montant_accorde), 0) / e.budget_alloue &gt;= 0.4 <span class="kw">THEN</span> <span class="str">&#x27;Vigilance - engagement modéré&#x27;</span>
+        <span class="kw">ELSE</span> <span class="str">&#x27;Marge disponible confortable&#x27;</span>
+    <span class="kw">END</span> <span class="kw">AS</span> niveau_alerte
+<span class="kw">FROM</span> enveloppes_budgetaires e
+<span class="kw">JOIN</span> categories_aides c <span class="kw">ON</span> e.categorie_id = c.id
+<span class="kw">LEFT JOIN</span> dossiers_aide d <span class="kw">ON</span> d.categorie_id = e.categorie_id <span class="kw">AND</span> d.statut = <span class="str">&#x27;accepté&#x27;</span>
+<span class="kw">GROUP BY</span> c.nom, e.budget_alloue
+<span class="kw">ORDER BY</span> budget_restant <span class="kw">ASC</span>;
+<span class="cmt">-- Résultat attendu : aucune catégorie n&#x27;atteint 80% ici -&gt; toutes en &quot;Marge disponible confortable&quot;</span>
+<span class="cmt">-- ou &quot;Vigilance&quot; pour Efficacité énergétique (39%)</span>
+
+
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt">-- EXERCICE 15 - VUE : tableau de bord financier global</span>
+<span class="cmt">-- ------------------------------------------------------------</span>
+<span class="cmt"><strong style="color:#ffb300; font-style:normal;">-- 🎯 OBJECTIF : regrouper en une seule vue réutilisable les indicateurs clés</strong></span>
+<span class="cmt">-- (budget, engagé, versé, taux) pour un reporting financier régulier.</span>
+
+<span class="kw">CREATE VIEW</span> tableau_bord_financier <span class="kw">AS</span>
+<span class="kw">SELECT</span> c.nom <span class="kw">AS</span> categorie, e.annee, e.budget_alloue,
+       <span class="kw">COALESCE</span>(<span class="kw">SUM</span>(<span class="kw">DISTINCT</span> d.montant_accorde), 0) <span class="kw">AS</span> montant_engage,
+       <span class="kw">COALESCE</span>((<span class="kw">SELECT</span> <span class="kw">SUM</span>(v.montant) <span class="kw">FROM</span> versements v
+                 <span class="kw">JOIN</span> dossiers_aide d2 <span class="kw">ON</span> v.dossier_id = d2.id
+                 <span class="kw">WHERE</span> d2.categorie_id = e.categorie_id), 0) <span class="kw">AS</span> montant_verse,
+       <span class="kw">ROUND</span>(<span class="kw">COALESCE</span>(<span class="kw">SUM</span>(<span class="kw">DISTINCT</span> d.montant_accorde), 0) / e.budget_alloue * 100, 2) <span class="kw">AS</span> taux_engagement_pct
+<span class="kw">FROM</span> enveloppes_budgetaires e
+<span class="kw">JOIN</span> categories_aides c <span class="kw">ON</span> e.categorie_id = c.id
+<span class="kw">LEFT JOIN</span> dossiers_aide d <span class="kw">ON</span> d.categorie_id = e.categorie_id <span class="kw">AND</span> d.statut = <span class="str">&#x27;accepté&#x27;</span>
+<span class="kw">GROUP BY</span> c.nom, e.annee, e.budget_alloue, e.categorie_id;
+
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> tableau_bord_financier <span class="kw">ORDER BY</span> taux_engagement_pct <span class="kw">DESC</span>;
+<span class="cmt">-- Résultat attendu : synthèse réutilisable combinant budget, engagé, versé et taux, par catégorie</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- RÉCAPITULATIF PARTIE 2 - NOTIONS FINANCIÈRES ILLUSTRÉES</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- - Nouvelles contraintes : UNIQUE composite (categorie_id, annee)</span>
+<span class="cmt">-- - COALESCE pour neutraliser les catégories sans dossier accepté</span>
+<span class="cmt">-- - Calculs dérivés (taux, reste à verser) directement en SQL</span>
+<span class="cmt">-- - Fonction de fenêtrage SUM() OVER pour un cumul chronologique de trésorerie</span>
+<span class="cmt">-- - CASE WHEN pour classer un niveau d&#x27;alerte budgétaire</span>
+<span class="cmt">-- - Sous-requête corrélée dans le SELECT d&#x27;une vue (montant_verse)</span>
+<span class="cmt">-- - Vue de synthèse combinant plusieurs sources (enveloppes + dossiers + versements)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- RÉCAPITULATIF DES NOTIONS ILLUSTRÉES</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- WITH RECURSIVE, fonctions de fenêtrage (RANK, AVG OVER), CASE WHEN,</span>
+<span class="cmt">-- COALESCE, EXISTS/NOT EXISTS, JSONB, ARRAY, INDEX + EXPLAIN,</span>
+<span class="cmt">-- TRANSACTIONS (BEGIN/COMMIT), VUES (CREATE VIEW)</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- PERSPECTIVES - KPI DE PILOTAGE BUDGÉTAIRE</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- Ce projet peut être enrichi pour établir tous les KPI de pilotage</span>
+<span class="cmt">-- budgétaire pertinents, permettant de prendre des décisions</span>
+<span class="cmt">-- optimales, notamment :</span>
+<span class="cmt">--   1. Taux d&#x27;engagement budgétaire par catégorie/région/année</span>
+<span class="cmt">--   2. Délai moyen d&#x27;instruction (dépôt -&gt; décision)</span>
+<span class="cmt">--   3. Taux d&#x27;acceptation des dossiers (accepté / total traité)</span>
+<span class="cmt">--   4. Reste à verser global et par échéance (prévision de trésorerie)</span>
+<span class="cmt">--   5. Montant moyen accordé par dossier, par secteur d&#x27;activité</span>
+<span class="cmt">--</span>
+<span class="cmt">-- Cependant, pour l&#x27;exploitation et la visualisation de ces</span>
+<span class="cmt">-- indicateurs, nous privilégions Power BI plutôt que des requêtes</span>
+<span class="cmt">-- SQL de reporting : tableaux de bord interactifs, filtres dynamiques</span>
+<span class="cmt">-- et partage facilité auprès de décideurs non techniques.</span>
+
+
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- LIEN POUR REPRENDRE LA SÉANCE (DB Fiddle)</span>
+<span class="cmt">-- ============================================================</span>
+<span class="cmt">-- https://www.db-fiddle.com/f/n7Vqz25KhTNvxMEN8pXuiG/0</span>
+</pre>
+  <div class="note">
+    <strong>⚠️ Point important sur l'ordre des clauses :</strong> en SQL, l'ordre d'écriture est toujours : <code>WHERE</code> puis <code>ORDER BY</code> (jamais l'inverse). Ici le <code>WHERE</code> s'applique sur le résultat de la CTE (<code>total_depense &gt; 50</code>), et le <code>ORDER BY</code> trie ce qui reste après le filtre.
+  </div>
+  <div class="note">
+    <strong>⚠️ Ordre général d'écriture d'une requête SQL (du début à la fin) :</strong><br>
+    1. <code>SELECT</code> — colonnes à afficher<br>
+    2. <code>FROM</code> — table de départ<br>
+    3. <code>JOIN</code> — tables reliées (si besoin)<br>
+    4. <code>WHERE</code> — filtre sur les lignes brutes<br>
+    5. <code>GROUP BY</code> — regroupement (si agrégation)<br>
+    6. <code>HAVING</code> — filtre sur le résultat du regroupement<br>
+    7. <code>ORDER BY</code> — tri du résultat final<br>
+    8. <code>LIMIT</code> — nombre de lignes à garder<br>
+    Cet ordre d'écriture ne change jamais, même si une clause est absente — on saute simplement l'étape non utilisée.
+  </div>
+  <div class="note">
+    <strong>⚠️ PostgreSQL vs autres SGBD (MySQL, SQL Server, Oracle, SQLite) :</strong><br>
+    Le SQL de base (<code>SELECT</code>, <code>WHERE</code>, <code>JOIN</code>, <code>GROUP BY</code>...) est le même partout, mais certaines commandes ne fonctionnent QUE sur PostgreSQL :<br>
+    • <code>SERIAL</code> / <code>BIGSERIAL</code> — spécifique à PostgreSQL. MySQL utilise <code>AUTO_INCREMENT</code>, SQL Server utilise <code>IDENTITY(1,1)</code>.<br>
+    • <code>ILIKE</code> — recherche texte insensible à la casse, propre à PostgreSQL. Sur MySQL/SQL Server, <code>LIKE</code> est déjà insensible à la casse par défaut.<br>
+    • <code>LIMIT ... OFFSET ...</code> — utilisé par PostgreSQL et MySQL. SQL Server utilise <code>TOP</code> ou <code>OFFSET ... FETCH NEXT</code>, Oracle utilise <code>ROWNUM</code> ou <code>FETCH FIRST</code>.<br>
+    • <code>JSONB</code>, <code>ARRAY</code>, types géométriques — types de données avancés propres à PostgreSQL, absents des autres SGBD (ou gérés très différemment).<br>
+    • <code>RETURNING</code> après un <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> — spécifique à PostgreSQL (et SQLite récent), permet de récupérer directement les lignes modifiées.<br>
+    • Guillemets doubles <code>"nom_colonne"</code> pour les identifiants sensibles à la casse — SQL Server utilise plutôt les crochets <code>[nom_colonne]</code>, MySQL les accents graves <code>`nom_colonne`</code>.<br>
+    Retenir : ce qu'on apprend ici (les bases) est transférable partout, mais les fonctionnalités avancées de PostgreSQL ne se retrouvent pas forcément à l'identique ailleurs.
+  </div>
+  <footer>
+    Mor Talla DIENG — Data Analyst RH/Finance<br>
+    Généré à partir de la session d'apprentissage SQL / PostgreSQL<br>🔗 Reprendre sur DB Fiddle : <a href="https://www.db-fiddle.com/f/n7Vqz25KhTNvxMEN8pXuiG/0" style="color:#7dafff;" target="_blank">https://www.db-fiddle.com/f/n7Vqz25KhTNvxMEN8pXuiG/0</a>
+  </footer>
+</div>
+</body>
+</html>

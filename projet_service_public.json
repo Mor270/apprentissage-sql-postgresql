@@ -1,0 +1,590 @@
+{
+  "projet": "Simulation données service public : ADEME",
+  "auteur": "Mor Talla DIENG",
+  "role": "Data Analyst RH/Finance",
+  "description": "Projet pédagogique SQL/PostgreSQL, construit à partir de données 100% FICTIVES inventées pour l'exercice. Il simule le fonctionnement d'un organisme public de type ADEME (instruction et suivi financier de dossiers d'aides), sans utiliser aucune donnée réelle. Il illustre la hiérarchie récursive, les fonctions de fenêtrage, les sous-requêtes, JSONB/ARRAY, les index, les transactions et les vues.",
+  "avertissement_donnees": "Tous les organismes, agents, montants, dates, SIRET et emails de ce projet sont fictifs et ne correspondent à aucune entité réelle. 'ADEME' sert uniquement de contexte inspirant un schéma réaliste, pas de source de données.",
+  "moteur": "PostgreSQL",
+  "schema": {
+    "categories_aides": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "nom": "VARCHAR(100) NOT NULL",
+        "categorie_parent_id": "INT REFERENCES categories_aides(id) - auto-référence pour la hiérarchie"
+      }
+    },
+    "organismes": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "nom": "VARCHAR(150) NOT NULL",
+        "siret": "VARCHAR(14) UNIQUE NOT NULL",
+        "secteur": "VARCHAR(100)",
+        "region": "VARCHAR(100)",
+        "taille_effectif": "INT CHECK (taille_effectif > 0)"
+      }
+    },
+    "agents_instructeurs": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "nom": "VARCHAR(100) NOT NULL",
+        "email": "VARCHAR(100) UNIQUE NOT NULL"
+      }
+    },
+    "dossiers_aide": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "organisme_id": "INT REFERENCES organismes(id)",
+        "categorie_id": "INT REFERENCES categories_aides(id)",
+        "agent_id": "INT REFERENCES agents_instructeurs(id)",
+        "montant_demande": "NUMERIC(12,2) CHECK (montant_demande > 0)",
+        "montant_accorde": "NUMERIC(12,2) CHECK (montant_accorde >= 0)",
+        "statut": "VARCHAR(20) DEFAULT 'déposé' CHECK (statut IN ('déposé','en instruction','accepté','refusé'))",
+        "date_depot": "DATE DEFAULT CURRENT_DATE",
+        "date_decision": "DATE",
+        "details": "JSONB",
+        "tags": "TEXT[]"
+      }
+    },
+    "enveloppes_budgetaires": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "categorie_id": "INT REFERENCES categories_aides(id)",
+        "annee": "INT NOT NULL",
+        "budget_alloue": "NUMERIC(14,2) CHECK (budget_alloue > 0)",
+        "contrainte": "UNIQUE (categorie_id, annee) - une seule enveloppe par catégorie et par année"
+      }
+    },
+    "versements": {
+      "colonnes": {
+        "id": "SERIAL PRIMARY KEY",
+        "dossier_id": "INT REFERENCES dossiers_aide(id)",
+        "montant": "NUMERIC(12,2) CHECK (montant > 0)",
+        "date_versement": "DATE DEFAULT CURRENT_DATE"
+      }
+    }
+  },
+  "exercices": [
+    {
+      "numero": 1,
+      "titre": "CTE récursive - hiérarchie complète des catégories d'aides",
+      "objectif": "Afficher toutes les catégories d'aides avec leur niveau de profondeur, en descendant automatiquement dans la hiérarchie parent/enfant, quel que soit le nombre de niveaux.",
+      "notion": "WITH RECURSIVE",
+      "requete": "WITH RECURSIVE arbre_categories AS (\n    SELECT id, nom, categorie_parent_id, 1 AS niveau\n    FROM categories_aides\n    WHERE categorie_parent_id IS NULL\n    UNION ALL\n    SELECT c.id, c.nom, c.categorie_parent_id, ac.niveau + 1\n    FROM categories_aides c\n    JOIN arbre_categories ac ON c.categorie_parent_id = ac.id\n    WHERE ac.niveau < 10\n)\nSELECT * FROM arbre_categories ORDER BY niveau, nom;",
+      "explication": "L'ancrage part des catégories sans parent (niveau 1). La partie récursive rejoint la CTE à elle-même pour retrouver les enfants, niveau après niveau, jusqu'à épuisement.",
+      "resultat_attendu": [
+        {
+          "nom": "Bâtiment",
+          "parent_id": null,
+          "niveau": 1
+        },
+        {
+          "nom": "Énergie",
+          "parent_id": null,
+          "niveau": 1
+        },
+        {
+          "nom": "Efficacité énergétique",
+          "parent_id": 1,
+          "niveau": 2
+        },
+        {
+          "nom": "Énergies renouvelables",
+          "parent_id": 1,
+          "niveau": 2
+        },
+        {
+          "nom": "Isolation",
+          "parent_id": 2,
+          "niveau": 2
+        },
+        {
+          "nom": "Éolien",
+          "parent_id": 3,
+          "niveau": 3
+        },
+        {
+          "nom": "Solaire photovoltaïque",
+          "parent_id": 3,
+          "niveau": 3
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "titre": "Fonctions de fenêtrage - classement des montants par région",
+      "objectif": "Classer chaque dossier par montant demandé au sein de sa région, tout en gardant chaque ligne individuelle visible (contrairement à un simple GROUP BY).",
+      "notion": "RANK() OVER (PARTITION BY ... ORDER BY ...), AVG() OVER",
+      "requete": "SELECT o.region, o.nom AS organisme, d.montant_demande,\n       RANK() OVER (PARTITION BY o.region ORDER BY d.montant_demande DESC) AS rang_region,\n       ROUND(AVG(d.montant_demande) OVER (PARTITION BY o.region), 2) AS moyenne_region\nFROM dossiers_aide d\nJOIN organismes o ON d.organisme_id = o.id\nORDER BY o.region, rang_region;",
+      "explication": "PARTITION BY région recommence le classement à 1 pour chaque région, sans fusionner les lignes contrairement à GROUP BY.",
+      "resultat_attendu": [
+        {
+          "region": "Bretagne",
+          "organisme": "Ville de Rennes",
+          "montant": 78000.0,
+          "rang": 1,
+          "moyenne_region": 51000.0
+        },
+        {
+          "region": "Bretagne",
+          "organisme": "EcoBât Solutions",
+          "montant": 45000.0,
+          "rang": 2,
+          "moyenne_region": 51000.0
+        },
+        {
+          "region": "Bretagne",
+          "organisme": "EcoBât Solutions",
+          "montant": 30000.0,
+          "rang": 3,
+          "moyenne_region": 51000.0
+        },
+        {
+          "region": "Hauts-de-France",
+          "organisme": "Ferme Éolienne du Nord",
+          "montant": 350000.0,
+          "rang": 1,
+          "moyenne_region": 350000.0
+        },
+        {
+          "region": "Nouvelle-Aquitaine",
+          "organisme": "Coopérative AgriVert",
+          "montant": 62000.0,
+          "rang": 1,
+          "moyenne_region": 62000.0
+        },
+        {
+          "region": "Occitanie",
+          "organisme": "SolarTech Industries",
+          "montant": 120000.0,
+          "rang": 1,
+          "moyenne_region": 120000.0
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "titre": "CASE WHEN - statut lisible",
+      "objectif": "Transformer les codes de statut bruts en libellés compréhensibles pour un rapport destiné à des non-techniciens.",
+      "notion": "CASE WHEN ... THEN ... ELSE ... END",
+      "requete": "SELECT nom,\n    CASE statut\n        WHEN 'accepté' THEN 'Financement validé'\n        WHEN 'refusé' THEN 'Financement rejeté'\n        WHEN 'en instruction' THEN 'En cours d''analyse'\n        ELSE 'Dossier récent, non traité'\n    END AS statut_lisible\nFROM dossiers_aide d JOIN organismes o ON d.organisme_id = o.id;",
+      "explication": "CASE statut WHEN valeur THEN ... est une variante compacte de CASE WHEN colonne = valeur THEN ..., utile quand on compare toujours la même colonne.",
+      "resultat_attendu": [
+        {
+          "organisme": "EcoBât Solutions",
+          "statut_lisible": "Financement validé"
+        },
+        {
+          "organisme": "SolarTech Industries",
+          "statut_lisible": "En cours d'analyse"
+        },
+        {
+          "organisme": "Ville de Rennes",
+          "statut_lisible": "Financement validé"
+        },
+        {
+          "organisme": "Ferme Éolienne du Nord",
+          "statut_lisible": "Dossier récent, non traité"
+        },
+        {
+          "organisme": "Coopérative AgriVert",
+          "statut_lisible": "Financement rejeté"
+        },
+        {
+          "organisme": "EcoBât Solutions",
+          "statut_lisible": "En cours d'analyse"
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "titre": "COALESCE - montant et décision par défaut",
+      "objectif": "Éviter d'afficher des valeurs vides (NULL) pour les dossiers pas encore décidés, en les remplaçant par une valeur ou un texte par défaut.",
+      "notion": "COALESCE()",
+      "requete": "SELECT o.nom, d.montant_demande,\n       COALESCE(d.montant_accorde, 0) AS montant_accorde_affiche,\n       COALESCE(d.date_decision::TEXT, 'Décision en attente') AS decision\nFROM dossiers_aide d JOIN organismes o ON d.organisme_id = o.id;",
+      "explication": "COALESCE retourne la première valeur non NULL. Utile pour éviter d'afficher des champs vides dans un rapport.",
+      "resultat_attendu": [
+        {
+          "organisme": "EcoBât Solutions",
+          "montant_demande": 45000.0,
+          "montant_accorde_affiche": 38000.0,
+          "decision": "2026-03-01"
+        },
+        {
+          "organisme": "SolarTech Industries",
+          "montant_demande": 120000.0,
+          "montant_accorde_affiche": 0,
+          "decision": "Décision en attente"
+        },
+        {
+          "organisme": "Ville de Rennes",
+          "montant_demande": 78000.0,
+          "montant_accorde_affiche": 78000.0,
+          "decision": "2026-02-10"
+        },
+        {
+          "organisme": "Ferme Éolienne du Nord",
+          "montant_demande": 350000.0,
+          "montant_accorde_affiche": 0,
+          "decision": "Décision en attente"
+        },
+        {
+          "organisme": "Coopérative AgriVert",
+          "montant_demande": 62000.0,
+          "montant_accorde_affiche": 0.0,
+          "decision": "2026-03-20"
+        },
+        {
+          "organisme": "EcoBât Solutions",
+          "montant_demande": 30000.0,
+          "montant_accorde_affiche": 0,
+          "decision": "Décision en attente"
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "titre": "NOT EXISTS - organismes sans dossier accepté",
+      "objectif": "Identifier les organismes qui n'ont encore reçu aucune validation, pour un suivi ciblé de leur dossier.",
+      "notion": "NOT EXISTS (sous-requête corrélée)",
+      "requete": "SELECT o.nom\nFROM organismes o\nWHERE NOT EXISTS (\n    SELECT 1 FROM dossiers_aide d\n    WHERE d.organisme_id = o.id AND d.statut = 'accepté'\n);",
+      "explication": "Pour chaque organisme, on vérifie qu'aucun dossier accepté ne lui est lié. Plus sûr que NOT IN en cas de valeurs NULL.",
+      "resultat_attendu": [
+        "SolarTech Industries",
+        "Ferme Éolienne du Nord",
+        "Coopérative AgriVert"
+      ]
+    },
+    {
+      "numero": 6,
+      "titre": "JSONB - extraire la puissance des projets solaires",
+      "objectif": "Extraire une donnée technique précise (puissance en kWc) stockée dans un champ JSON à structure variable, sans avoir besoin d'une colonne dédiée dans la table.",
+      "notion": "->>, ?, cast ::NUMERIC",
+      "requete": "SELECT o.nom, d.details ->> 'technologie' AS technologie,\n       (d.details ->> 'puissance_kwc')::NUMERIC AS puissance_kwc\nFROM dossiers_aide d JOIN organismes o ON d.organisme_id = o.id\nWHERE d.details ? 'puissance_kwc'\nORDER BY puissance_kwc DESC;",
+      "explication": "->> extrait une valeur JSON en texte, converti ensuite en NUMERIC pour permettre le tri numérique. L'opérateur ? vérifie la présence de la clé.",
+      "resultat_attendu": [
+        {
+          "organisme": "SolarTech Industries",
+          "puissance_kwc": 250
+        },
+        {
+          "organisme": "EcoBât Solutions",
+          "puissance_kwc": 80
+        }
+      ]
+    },
+    {
+      "numero": 7,
+      "titre": "ARRAY - dossiers tagués 'production'",
+      "objectif": "Retrouver rapidement tous les dossiers liés à une thématique donnée grâce à leurs tags, sans jointure supplémentaire.",
+      "notion": "ANY(tableau)",
+      "requete": "SELECT o.nom, d.tags\nFROM dossiers_aide d JOIN organismes o ON d.organisme_id = o.id\nWHERE 'production' = ANY(d.tags);",
+      "explication": "ANY() vérifie si la valeur recherchée figure dans le tableau, quelle que soit sa position.",
+      "resultat_attendu": [
+        "SolarTech Industries",
+        "Ferme Éolienne du Nord"
+      ]
+    },
+    {
+      "numero": 8,
+      "titre": "Index - accélérer la recherche par SIRET",
+      "objectif": "Vérifier que les recherches fréquentes (par SIRET, par organisme, par statut) s'appuient bien sur un index plutôt que sur un parcours complet de la table.",
+      "notion": "CREATE INDEX, EXPLAIN",
+      "requete": "CREATE INDEX idx_dossiers_organisme ON dossiers_aide (organisme_id);\nCREATE INDEX idx_dossiers_agent ON dossiers_aide (agent_id);\nCREATE INDEX idx_dossiers_statut ON dossiers_aide (statut);\n\nEXPLAIN SELECT * FROM organismes WHERE siret = '23456789000122';",
+      "explication": "siret est déjà indexé automatiquement (UNIQUE). Les clés étrangères, elles, ne le sont pas par défaut : on les indexe manuellement si elles sont souvent utilisées en jointure ou filtre.",
+      "resultat_attendu": [
+        {
+          "resultat": "Index Scan using organismes_siret_key on organismes"
+        },
+        {
+          "resultat": "Index Cond: (siret = '23456789000122'::text)"
+        },
+        {
+          "resultat": "cost=0.15..8.17 rows=1 (estimation, valeurs indicatives)"
+        }
+      ]
+    },
+    {
+      "numero": 9,
+      "titre": "Transaction - valider un dossier en instruction",
+      "objectif": "Faire passer un dossier de 'en instruction' à 'accepté' en garantissant que le changement de statut ET le montant accordé soient appliqués ensemble, ou pas du tout en cas d'erreur.",
+      "notion": "BEGIN / COMMIT",
+      "requete": "BEGIN;\n\nUPDATE dossiers_aide\nSET statut = 'accepté', montant_accorde = 100000.00, date_decision = CURRENT_DATE\nWHERE organisme_id = (SELECT id FROM organismes WHERE nom = 'SolarTech Industries')\n  AND statut = 'en instruction';\n\nSELECT * FROM dossiers_aide\nWHERE organisme_id = (SELECT id FROM organismes WHERE nom = 'SolarTech Industries');\n\nCOMMIT;",
+      "explication": "L'UPDATE et sa vérification se font à l'intérieur du même bloc transactionnel ; COMMIT valide définitivement, ROLLBACK aurait tout annulé.",
+      "resultat_attendu": [
+        {
+          "organisme": "SolarTech Industries",
+          "montant_demande": 120000.0,
+          "montant_accorde": 100000.0,
+          "statut": "accepté",
+          "date_decision": "date du jour"
+        }
+      ]
+    },
+    {
+      "numero": 10,
+      "titre": "Vue - tableau de bord des dossiers par catégorie",
+      "objectif": "Créer un rapport réutilisable donnant en un coup d'œil le nombre de dossiers et les montants totaux par catégorie d'aide, sans avoir à réécrire la requête à chaque consultation.",
+      "notion": "CREATE VIEW",
+      "requete": "CREATE VIEW bilan_categories AS\nSELECT c.nom AS categorie,\n       COUNT(d.id) AS nombre_dossiers,\n       COALESCE(SUM(d.montant_demande), 0) AS total_demande,\n       COALESCE(SUM(d.montant_accorde), 0) AS total_accorde\nFROM categories_aides c\nLEFT JOIN dossiers_aide d ON d.categorie_id = c.id\nGROUP BY c.nom;\n\nSELECT * FROM bilan_categories ORDER BY total_demande DESC;",
+      "explication": "LEFT JOIN conserve les catégories sans aucun dossier, avec des totaux à 0 grâce à COALESCE. La vue est réutilisable dans n'importe quelle requête future.",
+      "resultat_attendu": [
+        {
+          "categorie": "Éolien",
+          "nombre_dossiers": 1,
+          "total_demande": 350000.0,
+          "total_accorde": 0.0
+        },
+        {
+          "categorie": "Solaire photovoltaïque",
+          "nombre_dossiers": 2,
+          "total_demande": 150000.0,
+          "total_accorde": 100000.0
+        },
+        {
+          "categorie": "Efficacité énergétique",
+          "nombre_dossiers": 1,
+          "total_demande": 78000.0,
+          "total_accorde": 78000.0
+        },
+        {
+          "categorie": "Énergies renouvelables",
+          "nombre_dossiers": 1,
+          "total_demande": 62000.0,
+          "total_accorde": 0.0
+        },
+        {
+          "categorie": "Isolation",
+          "nombre_dossiers": 1,
+          "total_demande": 45000.0,
+          "total_accorde": 38000.0
+        },
+        {
+          "categorie": "Bâtiment",
+          "nombre_dossiers": 0,
+          "total_demande": 0.0,
+          "total_accorde": 0.0
+        },
+        {
+          "categorie": "Énergie",
+          "nombre_dossiers": 0,
+          "total_demande": 0.0,
+          "total_accorde": 0.0
+        }
+      ]
+    },
+    {
+      "numero": 11,
+      "titre": "PARTIE 2 - Taux d'engagement par catégorie et par année",
+      "objectif": "Mesurer, pour chaque catégorie d'aide, quelle proportion du budget alloué a déjà été engagée par des décisions favorables.",
+      "notion": "COALESCE, calcul dérivé, LEFT JOIN",
+      "requete": "SELECT c.nom AS categorie, e.annee, e.budget_alloue,\n       COALESCE(SUM(d.montant_accorde), 0) AS montant_engage,\n       ROUND(COALESCE(SUM(d.montant_accorde), 0) / e.budget_alloue * 100, 2) AS taux_engagement_pct\nFROM enveloppes_budgetaires e\nJOIN categories_aides c ON e.categorie_id = c.id\nLEFT JOIN dossiers_aide d ON d.categorie_id = e.categorie_id AND d.statut = 'accepté'\nGROUP BY c.nom, e.annee, e.budget_alloue\nORDER BY taux_engagement_pct DESC;",
+      "explication": "Le taux d'engagement rapporte le montant déjà accordé au budget alloué de l'enveloppe. COALESCE évite une division par NULL pour les catégories sans dossier accepté.",
+      "resultat_attendu": [
+        {
+          "categorie": "Efficacité énergétique",
+          "budget_alloue": 200000,
+          "engage": 78000,
+          "taux_pct": 39.0
+        },
+        {
+          "categorie": "Isolation",
+          "budget_alloue": 150000,
+          "engage": 38000,
+          "taux_pct": 25.33
+        },
+        {
+          "categorie": "Solaire photovoltaïque",
+          "budget_alloue": 400000,
+          "engage": 100000,
+          "taux_pct": 25.0
+        },
+        {
+          "categorie": "Énergies renouvelables",
+          "budget_alloue": 500000,
+          "engage": 0,
+          "taux_pct": 0.0
+        },
+        {
+          "categorie": "Éolien",
+          "budget_alloue": 600000,
+          "engage": 0,
+          "taux_pct": 0.0
+        }
+      ]
+    },
+    {
+      "numero": 12,
+      "titre": "PARTIE 2 - Reste à verser par dossier accepté",
+      "objectif": "Suivre, pour chaque dossier validé, le montant qu'il reste concrètement à payer à l'organisme bénéficiaire.",
+      "notion": "LEFT JOIN, SUM, COALESCE",
+      "requete": "SELECT o.nom AS organisme, d.montant_accorde,\n       COALESCE(SUM(v.montant), 0) AS deja_verse,\n       d.montant_accorde - COALESCE(SUM(v.montant), 0) AS reste_a_verser\nFROM dossiers_aide d\nJOIN organismes o ON d.organisme_id = o.id\nLEFT JOIN versements v ON v.dossier_id = d.id\nWHERE d.statut = 'accepté'\nGROUP BY o.nom, d.montant_accorde\nORDER BY reste_a_verser DESC;",
+      "explication": "Le reste à verser est la différence entre le montant accordé et la somme des versements déjà effectués pour ce dossier.",
+      "resultat_attendu": [
+        {
+          "organisme": "SolarTech Industries",
+          "montant_accorde": 100000.0,
+          "deja_verse": 50000.0,
+          "reste_a_verser": 50000.0
+        },
+        {
+          "organisme": "Ville de Rennes",
+          "montant_accorde": 78000.0,
+          "deja_verse": 78000.0,
+          "reste_a_verser": 0.0
+        },
+        {
+          "organisme": "EcoBât Solutions",
+          "montant_accorde": 38000.0,
+          "deja_verse": 38000.0,
+          "reste_a_verser": 0.0
+        }
+      ]
+    },
+    {
+      "numero": 13,
+      "titre": "PARTIE 2 - Cumul progressif des versements",
+      "objectif": "Visualiser l'évolution de la trésorerie réellement décaissée au fil du temps, tous dossiers confondus.",
+      "notion": "SUM() OVER (ORDER BY ...)",
+      "requete": "SELECT v.date_versement, o.nom AS organisme, v.montant,\n       SUM(v.montant) OVER (ORDER BY v.date_versement) AS montant_cumule_verse\nFROM versements v\nJOIN dossiers_aide d ON v.dossier_id = d.id\nJOIN organismes o ON d.organisme_id = o.id\nORDER BY v.date_versement;",
+      "explication": "Fonction de fenêtrage sans PARTITION BY : le cumul porte sur l'ensemble des versements, triés chronologiquement - utile pour suivre la trésorerie décaissée dans le temps.",
+      "resultat_attendu": [
+        {
+          "date": "2026-02-20",
+          "organisme": "Ville de Rennes",
+          "montant": 78000.0,
+          "cumule": 78000.0
+        },
+        {
+          "date": "2026-03-15",
+          "organisme": "EcoBât Solutions",
+          "montant": 19000.0,
+          "cumule": 97000.0
+        },
+        {
+          "date": "2026-06-10",
+          "organisme": "SolarTech Industries",
+          "montant": 50000.0,
+          "cumule": 147000.0
+        },
+        {
+          "date": "2026-06-15",
+          "organisme": "EcoBât Solutions",
+          "montant": 19000.0,
+          "cumule": 166000.0
+        }
+      ]
+    },
+    {
+      "numero": 14,
+      "titre": "PARTIE 2 - Prévisionnel et niveau d'alerte budgétaire",
+      "objectif": "Anticiper le risque de dépassement budgétaire en classant chaque catégorie selon son niveau d'engagement actuel.",
+      "notion": "CASE WHEN sur un ratio calculé",
+      "requete": "SELECT c.nom AS categorie, e.budget_alloue,\n       COALESCE(SUM(d.montant_accorde), 0) AS engage,\n       e.budget_alloue - COALESCE(SUM(d.montant_accorde), 0) AS budget_restant,\n    CASE\n        WHEN COALESCE(SUM(d.montant_accorde), 0) / e.budget_alloue >= 0.8 THEN 'Alerte - budget bientôt épuisé'\n        WHEN COALESCE(SUM(d.montant_accorde), 0) / e.budget_alloue >= 0.4 THEN 'Vigilance - engagement modéré'\n        ELSE 'Marge disponible confortable'\n    END AS niveau_alerte\nFROM enveloppes_budgetaires e\nJOIN categories_aides c ON e.categorie_id = c.id\nLEFT JOIN dossiers_aide d ON d.categorie_id = e.categorie_id AND d.statut = 'accepté'\nGROUP BY c.nom, e.budget_alloue\nORDER BY budget_restant ASC;",
+      "explication": "CASE WHEN classe chaque catégorie selon son taux d'engagement, pour un pilotage visuel simple sans outil externe.",
+      "resultat_attendu": [
+        {
+          "categorie": "Éolien",
+          "budget_alloue": 600000.0,
+          "engage": 0.0,
+          "budget_restant": 600000.0,
+          "niveau_alerte": "Marge disponible confortable"
+        },
+        {
+          "categorie": "Énergies renouvelables",
+          "budget_alloue": 500000.0,
+          "engage": 0.0,
+          "budget_restant": 500000.0,
+          "niveau_alerte": "Marge disponible confortable"
+        },
+        {
+          "categorie": "Solaire photovoltaïque",
+          "budget_alloue": 400000.0,
+          "engage": 100000.0,
+          "budget_restant": 300000.0,
+          "niveau_alerte": "Marge disponible confortable"
+        },
+        {
+          "categorie": "Efficacité énergétique",
+          "budget_alloue": 200000.0,
+          "engage": 78000.0,
+          "budget_restant": 122000.0,
+          "niveau_alerte": "Marge disponible confortable"
+        },
+        {
+          "categorie": "Isolation",
+          "budget_alloue": 150000.0,
+          "engage": 38000.0,
+          "budget_restant": 112000.0,
+          "niveau_alerte": "Marge disponible confortable"
+        }
+      ]
+    },
+    {
+      "numero": 15,
+      "titre": "PARTIE 2 - Vue tableau de bord financier global",
+      "objectif": "Regrouper en une seule vue réutilisable les indicateurs clés (budget, engagé, versé, taux) pour un reporting financier régulier.",
+      "notion": "CREATE VIEW, sous-requête corrélée dans SELECT",
+      "requete": "CREATE VIEW tableau_bord_financier AS\nSELECT c.nom AS categorie, e.annee, e.budget_alloue,\n       COALESCE(SUM(DISTINCT d.montant_accorde), 0) AS montant_engage,\n       COALESCE((SELECT SUM(v.montant) FROM versements v\n                 JOIN dossiers_aide d2 ON v.dossier_id = d2.id\n                 WHERE d2.categorie_id = e.categorie_id), 0) AS montant_verse,\n       ROUND(COALESCE(SUM(DISTINCT d.montant_accorde), 0) / e.budget_alloue * 100, 2) AS taux_engagement_pct\nFROM enveloppes_budgetaires e\nJOIN categories_aides c ON e.categorie_id = c.id\nLEFT JOIN dossiers_aide d ON d.categorie_id = e.categorie_id AND d.statut = 'accepté'\nGROUP BY c.nom, e.annee, e.budget_alloue, e.categorie_id;\n\nSELECT * FROM tableau_bord_financier ORDER BY taux_engagement_pct DESC;",
+      "explication": "Combine budget, montant engagé (via LEFT JOIN) et montant versé (via sous-requête corrélée) en une seule vue de synthèse, réutilisable pour un reporting régulier.",
+      "resultat_attendu": [
+        {
+          "categorie": "Efficacité énergétique",
+          "annee": 2026,
+          "budget_alloue": 200000.0,
+          "montant_engage": 78000.0,
+          "montant_verse": 78000.0,
+          "taux_pct": 39.0
+        },
+        {
+          "categorie": "Isolation",
+          "annee": 2026,
+          "budget_alloue": 150000.0,
+          "montant_engage": 38000.0,
+          "montant_verse": 38000.0,
+          "taux_pct": 25.33
+        },
+        {
+          "categorie": "Solaire photovoltaïque",
+          "annee": 2026,
+          "budget_alloue": 400000.0,
+          "montant_engage": 100000.0,
+          "montant_verse": 50000.0,
+          "taux_pct": 25.0
+        },
+        {
+          "categorie": "Énergies renouvelables",
+          "annee": 2026,
+          "budget_alloue": 500000.0,
+          "montant_engage": 0.0,
+          "montant_verse": 0.0,
+          "taux_pct": 0.0
+        },
+        {
+          "categorie": "Éolien",
+          "annee": 2026,
+          "budget_alloue": 600000.0,
+          "montant_engage": 0.0,
+          "montant_verse": 0.0,
+          "taux_pct": 0.0
+        }
+      ]
+    }
+  ],
+  "lien_db_fiddle": "https://www.db-fiddle.com/f/n7Vqz25KhTNvxMEN8pXuiG/0",
+  "perspectives_kpi": {
+    "note": "Ce projet peut être enrichi pour établir tous les KPI de pilotage budgétaire pertinents, permettant de prendre des décisions optimales, notamment :",
+    "kpi": [
+      "Taux d'engagement budgétaire par catégorie/région/année",
+      "Délai moyen d'instruction (dépôt -> décision)",
+      "Taux d'acceptation des dossiers (accepté / total traité)",
+      "Reste à verser global et par échéance (prévision de trésorerie)",
+      "Montant moyen accordé par dossier, par secteur d'activité"
+    ],
+    "preference_visualisation": "Pour l'exploitation et la visualisation de ces indicateurs, nous privilégions Power BI plutôt que des requêtes SQL de reporting : tableaux de bord interactifs, filtres dynamiques et partage facilité auprès de décideurs non techniques."
+  },
+  "notes_importantes": [
+    "L'ordre d'écriture d'une requête reste toujours SELECT > FROM > JOIN > WHERE > GROUP BY > HAVING > ORDER BY > LIMIT.",
+    "PostgreSQL diffère d'autres SGBD sur SERIAL, ILIKE, LIMIT/OFFSET, JSONB/ARRAY, RETURNING et les identifiants sensibles à la casse.",
+    "WHERE s'applique toujours avant ORDER BY, y compris après une CTE."
+  ]
+}
